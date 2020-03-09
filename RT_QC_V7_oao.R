@@ -1073,50 +1073,50 @@ ncvar_put( filenc, "BBP532", BBP532)
 ###################################################
 if(test_radiometry){
 
-if(length(ind_rad) <= 5){ 
-DOWNWELLING_IRRADIANCE_380_QC[ind_rad]="3"
-DOWNWELLING_IRRADIANCE_412_QC[ind_rad]="3"
-DOWNWELLING_IRRADIANCE_490_QC[ind_rad]="3"
-PAR_QC[ind_rad]="3"
-Type_380=rep(3,length(PRES))
-Type_412=rep(3,length(PRES))
-Type_490=rep(3,length(PRES))
-Type_PAR=rep(3,length(PRES))
+    if(length(ind_rad) <= 5){ 
+        DOWNWELLING_IRRADIANCE_380_QC[ind_rad]="3"
+        DOWNWELLING_IRRADIANCE_412_QC[ind_rad]="3"
+        DOWNWELLING_IRRADIANCE_490_QC[ind_rad]="3"
+        PAR_QC[ind_rad]="3"
+        Type_380=rep(3,length(PRES))
+        Type_412=rep(3,length(PRES))
+        Type_490=rep(3,length(PRES))
+        Type_PAR=rep(3,length(PRES))
+    
+    } else {
+    
+        RADIOMETRY_QC <- RT_QC_radiometry(PRES,IRR_380,IRR_412,IRR_490,PAR)
+        
+        # affect QC and remoce NA
+        DOWNWELLING_IRRADIANCE_380_QC=RADIOMETRY_QC[[1]]
+        # affect QC and remoce NA
+        DOWNWELLING_IRRADIANCE_412_QC=RADIOMETRY_QC[[2]]
+        # affect QC and remoce NA
+        DOWNWELLING_IRRADIANCE_490_QC=RADIOMETRY_QC[[3]]
+        # affect QC and remoce NA
+        PAR_QC=RADIOMETRY_QC[[4]]
+        
+        # profile type
+        Type_380=RADIOMETRY_QC[[5]]
+        # profile type
+        Type_412=RADIOMETRY_QC[[6]]
+        # profile type
+        Type_490=RADIOMETRY_QC[[7]]
+        # profile type
+        Type_PAR=RADIOMETRY_QC[[8]]
+    }
 
 } else {
 
-RADIOMETRY_QC <- RT_QC_radiometry(PRES,IRR_380,IRR_412,IRR_490,PAR)
-
-# affect QC and remoce NA
-DOWNWELLING_IRRADIANCE_380_QC=RADIOMETRY_QC[[1]]
-# affect QC and remoce NA
-DOWNWELLING_IRRADIANCE_412_QC=RADIOMETRY_QC[[2]]
-# affect QC and remoce NA
-DOWNWELLING_IRRADIANCE_490_QC=RADIOMETRY_QC[[3]]
-# affect QC and remoce NA
-PAR_QC=RADIOMETRY_QC[[4]]
-
-# profile type
-Type_380=RADIOMETRY_QC[[5]]
-# profile type
-Type_412=RADIOMETRY_QC[[6]]
-# profile type
-Type_490=RADIOMETRY_QC[[7]]
-# profile type
-Type_PAR=RADIOMETRY_QC[[8]]
-}
-
-} else {
-
-DOWNWELLING_IRRADIANCE_380_QC[ind_rad]="3"
-DOWNWELLING_IRRADIANCE_412_QC[ind_rad]="3"
-DOWNWELLING_IRRADIANCE_490_QC[ind_rad]="3"
-PAR_QC[ind_rad]="3"
-Type_380=rep(3,length(PRES))
-Type_412=rep(3,length(PRES))
-Type_490=rep(3,length(PRES))
-Type_PAR=rep(3,length(PRES))
-print("pas routine") 
+    DOWNWELLING_IRRADIANCE_380_QC[ind_rad]="3"
+    DOWNWELLING_IRRADIANCE_412_QC[ind_rad]="3"
+    DOWNWELLING_IRRADIANCE_490_QC[ind_rad]="3"
+    PAR_QC[ind_rad]="3"
+    Type_380=rep(3,length(PRES))
+    Type_412=rep(3,length(PRES))
+    Type_490=rep(3,length(PRES))
+    Type_PAR=rep(3,length(PRES))
+    print("pas routine") 
 }
 
 DOWNWELLING_IRRADIANCE_380_QC[ind_norad]=" "
