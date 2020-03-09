@@ -17,38 +17,38 @@ RT_QC_radiometry <- function(PRES,IRR_380,IRR_412,IRR_490,PAR) {
 
   TAB=cbind(PRES,IRR_380,IRR_412, IRR_490, PAR) #create a matrix using all the parameters 
   TAB=as.data.frame(TAB) #convert TAB in dataframe
-  head(TAB)
-  str(TAB)
+  #head(TAB)
+  #str(TAB)
   
   ##################################################
   #### 2. Replace failed aquisition with NA 
   ##################################################
-  for(s in 1:length(TAB$PRES)) {
-    if( TAB$IRR_380[s]==99999) {
-      TAB$IRR_380[s]=NA
-    }
-  }  #for irradiance at 380 nm
+  #for(s in 1:length(TAB$PRES)) {
+  #  if( TAB$IRR_380[s]==99999) {
+  #    TAB$IRR_380[s]=NA
+  #  }
+  #}  #for irradiance at 380 nm
   
-  for(s in 1:length(TAB$PRES)) {
-    if(  TAB$IRR_412[s]==99999) {
-      TAB$IRR_412[s]=NA
-    }
-  }  #for irradiance at 412 nm
+  #for(s in 1:length(TAB$PRES)) {
+  #  if(  TAB$IRR_412[s]==99999) {
+  #    TAB$IRR_412[s]=NA
+  #  }
+  #}  #for irradiance at 412 nm
   
-  for(s in 1:length(TAB$PRES)) {
-    if(  TAB$IRR_490[s]==99999) {
-      TAB$IRR_490[s]=NA
-    }
-  }  #for irradiance at 490 nm
+  #for(s in 1:length(TAB$PRES)) {
+  #  if(  TAB$IRR_490[s]==99999) {
+  #    TAB$IRR_490[s]=NA
+  #  }
+  #}  #for irradiance at 490 nm
   
-  for(s in 1:length(TAB$PRES)) {
-    if(TAB$PAR[s]==99999) {
-      TAB$PAR[s]=NA
-    }
-  }  #for PAR
+  #for(s in 1:length(TAB$PRES)) {
+  #  if(TAB$PAR[s]==99999) {
+  #    TAB$PAR[s]=NA
+  #  }
+  #}  #for PAR
   
-  head(TAB)
-  str(TAB)
+  #head(TAB)
+  #str(TAB)
   
   ##################################################
   #### 3. Create a data.frame without NA 
@@ -920,7 +920,8 @@ pts.flag3minus_PAR=which(flag3minus_PAR==T) #for checking sunny points during ov
 }
 # END of RT-QC for the CHANNEL PAR
 
-return(list(newdata_380$FLAG_380_QC,newdata_412$FLAG_412_QC,newdata_490$FLAG_490_QC,newdata_PAR$FLAG_PAR_QC,type380,type412,type490,typePAR))
+return(list("FLAG_380"=newdata_380$FLAG_380_QC, "FLAG_412"=newdata_412$FLAG_412_QC, "FLAG_490"=newdata_490$FLAG_490_QC, 
+            "FLAG_PAR"=newdata_PAR$FLAG_PAR_QC, "type380"=type380, "type412"=type412, "type490"=type490, "typePAR"=typePAR))
 
 #print(IDnc)
 }
