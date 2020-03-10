@@ -27,7 +27,7 @@ WMO = "6901524"
 
 profile_list = substr(prof_id[which(substr(prof_id,3,9)==WMO)], 3, 14)
 
-for (profile_actual in profile_list[1:2]) {
+for (profile_actual in profile_list) {
 
     iii = which(substr(prof_id,3,14)==profile_actual) #identify profile position in the index
     
@@ -90,7 +90,7 @@ for (profile_actual in profile_list[1:2]) {
             label.padding = unit(0.55, "lines"), # Rectangle size around label
             #label.size = 0.35,
             color = "black",
-            fill=type_col[as.numeric(dataf$typePAR)]
+            fill = type_col[as.numeric(as.character(dataf$typePAR[1]))]
         ) +
         theme_bw() +
         theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
@@ -109,7 +109,7 @@ for (profile_actual in profile_list[1:2]) {
             label.padding = unit(0.55, "lines"), # Rectangle size around label
             #label.size = 0.35,
             color = "black",
-            fill=type_col[as.numeric(dataf$type380)]
+            fill=type_col[as.numeric(as.character(dataf$type380[1]))]
         ) +
         theme_bw() +
         theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
@@ -128,7 +128,7 @@ for (profile_actual in profile_list[1:2]) {
             label.padding = unit(0.55, "lines"), # Rectangle size around label
             #label.size = 0.35,
             color = "black",
-            fill=type_col[as.numeric(dataf$type412)]
+            fill=type_col[as.numeric(as.character(dataf$type412[1]))]
         ) +
         theme_bw() +
         theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
@@ -147,7 +147,7 @@ for (profile_actual in profile_list[1:2]) {
             label.padding = unit(0.55, "lines"), # Rectangle size around label
             #label.size = 0.35,
             color = "black",
-            fill=type_col[as.numeric(dataf$type490)]
+            fill=type_col[as.numeric(as.character(dataf$type490[1]))]
         ) +
         theme_bw() +
         theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
