@@ -54,7 +54,7 @@ RT_QC_radiometry <- function(PRES,IRR_380,IRR_412,IRR_490,PAR) {
   #### 3. Create a data.frame without NA 
   ##################################################
   TAB_complete=TAB[complete.cases(TAB$IRR_380),]#to remove rows with NA. Same rows for any irradiance and PAR measurements.
-  str(TAB_complete)
+  #str(TAB_complete)
   TAB_NA=TAB[!complete.cases(TAB$IRR_380),] #dataframe with only NA values. Useful when assignin flags.
   
   ##################################################
@@ -143,8 +143,8 @@ lim412=i_412[1]-1
 lim490=i_490[1]-1
 limPAR=i_PAR[1]-1
 
-print("lim380")
-print(lim380)
+#print("lim380")
+#print(lim380)
 
 #### 4.B Check for negative values
 if(!is.na(lim380)) {
@@ -163,11 +163,11 @@ neg_380=which(TAB_complete$IRR_380[1:lim380]<=0)
 	OK380=FALSE 
         FLAG_380_QC=rep("3", length(TAB_complete$IRR_380)) #ASSIGNEMENT CORRESPONDING to STEP 3
         TAB_complete$FLAG_380_QC=FLAG_380_QC
-        TAB_NA$FLAG_380_QC="NA"
+        TAB_NA$FLAG_380_QC=rep("NA", length(TAB_NA$PRES))
         type380="3" #catherine
         TAB_380=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_380 <- TAB_380[order(as.numeric(row.names(TAB_380))),]  #to sort for the initial row order, NA included
-        str(newdata_380)
+        #str(newdata_380)
 }
 
 if(!is.na(lim412)) {
@@ -186,11 +186,11 @@ neg_412=which(TAB_complete$IRR_412[1:lim412]<=0)
 	OK412=FALSE
         FLAG_412_QC=rep("3", length(TAB_complete$IRR_412)) #ASSIGNEMENT CORRESPONDING to STEP 3
         TAB_complete$FLAG_412_QC=FLAG_412_QC
-        TAB_NA$FLAG_412_QC="NA"
+        TAB_NA$FLAG_412_QC=rep("NA", length(TAB_NA$PRES))
         type412="3" #catherine
         TAB_412=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_412 <- TAB_412[order(as.numeric(row.names(TAB_412))),]  #to sort for the initial row order, NA included
-        str(newdata_412)
+        #str(newdata_412)
 }
 
 if(!is.na(lim490)) {
@@ -209,11 +209,11 @@ neg_490=which(TAB_complete$IRR_490[1:lim490]<=0)
 	OK490=FALSE 
         FLAG_490_QC=rep("3", length(TAB_complete$IRR_490)) #ASSIGNEMENT CORRESPONDING to STEP 3
         TAB_complete$FLAG_490_QC=FLAG_490_QC
-        TAB_NA$FLAG_490_QC="NA"
+        TAB_NA$FLAG_490_QC=rep("NA", length(TAB_NA$PRES))
         type490="3" #catherine
         TAB_490=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_490 <- TAB_490[order(as.numeric(row.names(TAB_490))),]  #to sort for the initial row order, NA included
-        str(newdata_490)
+        #str(newdata_490)
 }
 
 if(!is.na(limPAR)) {
@@ -233,11 +233,11 @@ neg_PAR=which(TAB_complete$PAR[1:limPAR]<=0)
 	OKPAR=FALSE
         FLAG_PAR_QC=rep("3", length(TAB_complete$PAR)) #ASSIGNEMENT CORRESPONDING to STEP 3
         TAB_complete$FLAG_PAR_QC=FLAG_PAR_QC
-        TAB_NA$FLAG_PAR_QC="NA"
+        TAB_NA$FLAG_PAR_QC=rep("NA", length(TAB_NA$PRES))
         typePAR="3" #catherine
         TAB_PAR=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_PAR <- TAB_PAR[order(as.numeric(row.names(TAB_PAR))),]  #to sort for the initial row order, NA included
-        str(newdata_PAR)
+        #str(newdata_PAR)
 }
 
 #### 4.C SD calculation for the removed part (Calculation just useful for statistics etc not for QC)
@@ -275,8 +275,8 @@ neg_PAR=which(TAB_complete$PAR[1:limPAR]<=0)
   # STEP 2a: MAJOR CLOUDS IDENTIFICATION
 if(OK380){
 if (sum(!is.na(TAB_complete$IRR_380[1:lim380_bis]))>5 ) {
-print("380 bis")
-print(sum(!is.na(TAB_complete$IRR_380[1:lim380_bis])))
+#print("380 bis")
+#print(sum(!is.na(TAB_complete$IRR_380[1:lim380_bis])))
 pol_380_1=lm(log(TAB_complete$IRR_380[1:lim380_bis]) ~ TAB_complete$PRES[1:lim380_bis] + I(TAB_complete$PRES[1:lim380_bis]^2) + I(TAB_complete$PRES[1:lim380_bis]^3) + I(TAB_complete$PRES[1:lim380_bis]^4)) #not orthogonal fit
 summary(pol_380_1)
 mean_380=mean(pol_380_1$residuals, na.rm=T)
@@ -306,19 +306,19 @@ pts.flag3minus_380=which(flag3minus_380==T) #for checking sunny points during ov
   if(length(pts.flag3plus_380)>length(pts.flag3minus_380) & rsquared_380<0.995) { #THIS is STEP 2b:SWINGING PROFILE IDENTIFICATION
     FLAG_380_QC=rep("3", length(TAB_complete$IRR_380)) #stop analysis #also dark values are degraded to FLAG 4 #ALL POINTS ARE ASSIGNED TO FLAG 4
     TAB_complete$FLAG_380_QC=FLAG_380_QC
-    TAB_NA$FLAG_380_QC="NA"
+    TAB_NA$FLAG_380_QC=rep("NA", length(TAB_NA$PRES))
     type380="3" #catherine    
     TAB_380=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
     newdata_380 <- TAB_380[order(as.numeric(row.names(TAB_380))),]  #to sort for the initial row order, NA included
-    str(newdata_380) 
+    #str(newdata_380) 
     # newdata_380$FLAG_380_QC is the right string of characters to be included in NETCDF file
   } 
   #END of STEP 2b
   
   else { #BEGIN OF STEP 3: TYPE PROFILE IDENTIFICATION
-    print("380 no cloudy")
+    #print("380 no cloudy")
     pol_380_2=lm(log(TAB_complete$IRR_380[no.cloudy_380]) ~ TAB_complete$PRES[no.cloudy_380] + I(TAB_complete$PRES[no.cloudy_380]^2) + I(TAB_complete$PRES[no.cloudy_380]^3) + I(TAB_complete$PRES[no.cloudy_380]^4)) #not orthogonal fit made without using FLAG 3 and 4 pts form STEP 2a
-    summary(pol_380_2)
+    #summary(pol_380_2)
     rsquared_380_2=summary(pol_380_2)$r.squared
 #     intercept_380_2=pol_380_2$coefficients[1] #intercept
 #     x1_380_2=pol_380_2$coefficients[2] #coefficient
@@ -330,11 +330,11 @@ pts.flag3minus_380=which(flag3minus_380==T) #for checking sunny points during ov
   if(rsquared_380_2<=0.990) { #FLAG ASSIGNMENT CORRESPONDING TO STEP 3
     FLAG_380_QC=rep("3", length(TAB_complete$IRR_380)) #stop analysis #also dark values are degraded to FLAG 4 #ALL POINTS ARE ASSIGNED TO FLAG 4	
     TAB_complete$FLAG_380_QC=FLAG_380_QC  
-    TAB_NA$FLAG_380_QC="NA"
+    TAB_NA$FLAG_380_QC=rep("NA", length(TAB_NA$PRES))
     type380="3" #catherine 
     TAB_380=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
     newdata_380 <- TAB_380[order(as.numeric(row.names(TAB_380))),]  #to sort for the initial row order, NA included
-    str(newdata_380) 
+    #str(newdata_380) 
     # newdata_380$FLAG_380_QC is the right string of characters to be included in NETCDF file
   }
   
@@ -344,11 +344,11 @@ pts.flag3minus_380=which(flag3minus_380==T) #for checking sunny points during ov
       FLAG_380_QC[pts.flag3_380]="3" #FLAG 3 pts assigned in STEP 2a #no-useful command but it is kept just to remind the STEP of assignement
       FLAG_380_QC[pts.flag4_380]="3" #FLAG 4 pts assigned in STEP 2a
       TAB_complete$FLAG_380_QC=FLAG_380_QC   
-      TAB_NA$FLAG_380_QC="NA"
+      TAB_NA$FLAG_380_QC=rep("NA", length(TAB_NA$PRES))
       type380="3" #catherine 
       TAB_380=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
       newdata_380 <- TAB_380[order(as.numeric(row.names(TAB_380))),]  #to sort for the initial row order, NA included
-      str(newdata_380)  
+      #str(newdata_380)  
       # newdata_380$FLAG_380_QC is the right string of characters to be included in NETCDF file
     }
     
@@ -377,17 +377,17 @@ pts.flag3minus_380=which(flag3minus_380==T) #for checking sunny points during ov
         FLAG_380_QC[no.cloudy_380[pts.flag3_380_ADJ]]="3" #FLAG 3 assigned in STEP 4a
         FLAG_380_QC[no.cloudy_380[pts.flag4_380_ADJ]]="3" #FLAG 4 assigned in STEP 4a
         TAB_complete$FLAG_380_QC=FLAG_380_QC
-        TAB_NA$FLAG_380_QC="NA"
+        TAB_NA$FLAG_380_QC=rep("NA", length(TAB_NA$PRES))
 	type380="2" #catherine 
         TAB_380=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_380 <- TAB_380[order(as.numeric(row.names(TAB_380))),]  #to sort for the initial row order, NA included
-        str(newdata_380)
+        #str(newdata_380)
 # newdata_380$FLAG_380_QC is the right string of characters to be included in NETCDF file
       }
       
       else{ #begin of STEP 4b : TYPE1_FLAG ASSIGNEMENT
            pol_380_3=lm(log(TAB_complete$IRR_380[no.cloudy_380]) ~ TAB_complete$PRES[no.cloudy_380] + I(TAB_complete$PRES[no.cloudy_380]^2) + I(TAB_complete$PRES[no.cloudy_380]^3) + I(TAB_complete$PRES[no.cloudy_380]^4)) #not orthogonal fit made without using FLAG 3 and 4 pts form STEP 2a
-           summary(pol_380_3)
+           #summary(pol_380_3)
            mean_380_3=mean(pol_380_3$residuals, na.rm=T)
            sd_380_3=sd(pol_380_3$residuals, na.rm=T)
            lim_sd1_380_3=1*sd_380_3 # 1 standard deviation #to detect FLAG 2
@@ -413,22 +413,22 @@ pts.flag3minus_380=which(flag3minus_380==T) #for checking sunny points during ov
            FLAG_380_QC[no.cloudy_380[pts.flag3_380_ADJ]]="3" #FLAG 3 assigned in STEP 4b
            FLAG_380_QC[no.cloudy_380[pts.flag4_380_ADJ]]="3" #FLAG 4 assigned in STEP 4b
            TAB_complete$FLAG_380_QC=FLAG_380_QC   
-           TAB_NA$FLAG_380_QC="NA"
+           TAB_NA$FLAG_380_QC=rep("NA", length(TAB_NA$PRES))
 	   type380="1" #catherine 
            TAB_380=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
            newdata_380 <- TAB_380[order(as.numeric(row.names(TAB_380))),]  #to sort for the initial row order, NA included
-           str(newdata_380)
+           #str(newdata_380)
            # newdata_380$FLAG_380_QC is the right string of characters to be included in NETCDF file
       }}}}}
 } 
 } else {
 	FLAG_380_QC=rep("3", length(TAB_complete$IRR_380)) #ASSIGNEMENT CORRESPONDING to STEP 3
 	TAB_complete$FLAG_380_QC=FLAG_380_QC   
-	TAB_NA$FLAG_380_QC="NA"
+	TAB_NA$FLAG_380_QC=rep("NA", length(TAB_NA$PRES))
 	type380="3" #catherine 
         TAB_380=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_380 <- TAB_380[order(as.numeric(row.names(TAB_380))),]  #to sort for the initial row order, NA included
-        str(newdata_380)
+        #str(newdata_380)
 }
 }
 # END of RT-QC for the CHANNEL 380 nm
@@ -470,11 +470,11 @@ pts.flag3minus_412=which(flag3minus_412==T) #for checking sunny points during ov
   if(length(pts.flag3plus_412)>length(pts.flag3minus_412) & rsquared_412<0.995) { #THIS is STEP 2b:SWINGING PROFILE IDENTIFICATION
     FLAG_412_QC=rep("3", length(TAB_complete$IRR_412)) #stop analysis #also dark values are degraded to FLAG 4 #ALL POINTS ARE ASSIGNED TO FLAG 4
     TAB_complete$FLAG_412_QC=FLAG_412_QC   
-    TAB_NA$FLAG_412_QC="NA"
+    TAB_NA$FLAG_412_QC=rep("NA", length(TAB_NA$PRES))
     type412="3" #catherine  
     TAB_412=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
     newdata_412 <- TAB_412[order(as.numeric(row.names(TAB_412))),]  #to sort for the initial row order, NA included
-    str(newdata_412) 
+    #str(newdata_412) 
     # newdata_412$FLAG_412_QC is the right string of characters to be included in NETCDF file
   } 
   #END of STEP 2b
@@ -493,11 +493,11 @@ pts.flag3minus_412=which(flag3minus_412==T) #for checking sunny points during ov
   if(rsquared_412_2<=0.990) { #FLAG ASSIGNMENT CORRESPONDING TO STEP 3
     FLAG_412_QC=rep("3", length(TAB_complete$IRR_412)) #stop analysis #also dark values are degraded to FLAG 4 #ALL POINTS ARE ASSIGNED TO FLAG 4
     TAB_complete$FLAG_412_QC=FLAG_412_QC   
-    TAB_NA$FLAG_412_QC="NA"
+    TAB_NA$FLAG_412_QC=rep("NA", length(TAB_NA$PRES))
     type412="3" #catherine  
     TAB_412=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
     newdata_412 <- TAB_412[order(as.numeric(row.names(TAB_412))),]  #to sort for the initial row order, NA included
-    str(newdata_412) 
+    #str(newdata_412) 
     # newdata_412$FLAG_412_QC is the right string of characters to be included in NETCDF file
   }
   
@@ -507,11 +507,11 @@ pts.flag3minus_412=which(flag3minus_412==T) #for checking sunny points during ov
       FLAG_412_QC[pts.flag3_412]="3" #FLAG 3 pts assigned in STEP 2a #no-useful command but it is kept just to remind the STEP of assignement
       FLAG_412_QC[pts.flag4_412]="3" #FLAG 4 pts assigned in STEP 2a
       TAB_complete$FLAG_412_QC=FLAG_412_QC   
-      TAB_NA$FLAG_412_QC="NA"
+      TAB_NA$FLAG_412_QC=rep("NA", length(TAB_NA$PRES))
       type412="3" #catherine  
       TAB_412=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
       newdata_412 <- TAB_412[order(as.numeric(row.names(TAB_412))),]  #to sort for the initial row order, NA included
-      str(newdata_412)  
+      #str(newdata_412)  
       # newdata_412$FLAG_412_QC is the right string of characters to be included in NETCDF file
     }
     
@@ -540,11 +540,11 @@ pts.flag3minus_412=which(flag3minus_412==T) #for checking sunny points during ov
         FLAG_412_QC[no.cloudy_412[pts.flag3_412_ADJ]]="3" #FLAG 3 assigned in STEP 4a
         FLAG_412_QC[no.cloudy_412[pts.flag4_412_ADJ]]="3" #FLAG 4 assigned in STEP 4a
         TAB_complete$FLAG_412_QC=FLAG_412_QC
-        TAB_NA$FLAG_412_QC="NA"
+        TAB_NA$FLAG_412_QC=rep("NA", length(TAB_NA$PRES))
 	type412="2" #catherine  
         TAB_412=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_412 <- TAB_412[order(as.numeric(row.names(TAB_412))),]  #to sort for the initial row order, NA included
-        str(newdata_412)
+        #str(newdata_412)
         # newdata_412$FLAG_412_QC is the right string of characters to be included in NETCDF file
       }
       
@@ -576,22 +576,22 @@ pts.flag3minus_412=which(flag3minus_412==T) #for checking sunny points during ov
         FLAG_412_QC[no.cloudy_412[pts.flag3_412_ADJ]]="3" #FLAG 3 assigned in STEP 4b
         FLAG_412_QC[no.cloudy_412[pts.flag4_412_ADJ]]="3" #FLAG 4 assigned in STEP 4b
         TAB_complete$FLAG_412_QC=FLAG_412_QC   
-        TAB_NA$FLAG_412_QC="NA"
+        TAB_NA$FLAG_412_QC=rep("NA", length(TAB_NA$PRES))
 	type412="1" #catherine  
         TAB_412=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_412 <- TAB_412[order(as.numeric(row.names(TAB_412))),]  #to sort for the initial row order, NA included
-        str(newdata_412)
+        #str(newdata_412)
         # newdata_412$FLAG_412_QC is the right string of characters to be included in NETCDF file
       }}}}}
 } 
 } else {
 	FLAG_412_QC=rep("3", length(TAB_complete$IRR_412)) #ASSIGNEMENT CORRESPONDING to STEP 3
 	TAB_complete$FLAG_412_QC=FLAG_412_QC   
-	TAB_NA$FLAG_412_QC="NA"
+	TAB_NA$FLAG_412_QC=rep("NA", length(TAB_NA$PRES))
 	type412="3" #catherine 
         TAB_412=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_412 <- TAB_412[order(as.numeric(row.names(TAB_412))),]  #to sort for the initial row order, NA included
-        str(newdata_412)
+        #str(newdata_412)
 }
 }
 # END of RT-QC for the CHANNEL 412 nm  
@@ -632,11 +632,11 @@ pts.flag3minus_490=which(flag3minus_490==T) #for checking sunny points during ov
   if(length(pts.flag3plus_490)>length(pts.flag3minus_490) & rsquared_490<0.995) { #THIS is STEP 2b:SWINGING PROFILE IDENTIFICATION
     FLAG_490_QC=rep("3", length(TAB_complete$IRR_490)) #stop analysis #also dark values are degraded to FLAG 4 #ALL POINTS ARE ASSIGNED TO FLAG 4
     TAB_complete$FLAG_490_QC=FLAG_490_QC   
-    TAB_NA$FLAG_490_QC="NA"
+    TAB_NA$FLAG_490_QC=rep("NA", length(TAB_NA$PRES))
     type490="3" #catherine  
     TAB_490=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
     newdata_490 <- TAB_490[order(as.numeric(row.names(TAB_490))),]  #to sort for the initial row order, NA included
-    str(newdata_490) 
+    #str(newdata_490) 
     # newdata_490$FLAG_490_QC is the right string of characters to be included in NETCDF file
   } 
   #END of STEP 2b
@@ -655,11 +655,11 @@ pts.flag3minus_490=which(flag3minus_490==T) #for checking sunny points during ov
   if(rsquared_490_2<=0.990) { #FLAG ASSIGNMENT CORRESPONDING TO STEP 3
     FLAG_490_QC=rep("3", length(TAB_complete$IRR_490)) #stop analysis #also dark values are degraded to FLAG 4 #ALL POINTS ARE ASSIGNED TO FLAG 4
     TAB_complete$FLAG_490_QC=FLAG_490_QC   
-    TAB_NA$FLAG_490_QC="NA"
+    TAB_NA$FLAG_490_QC=rep("NA", length(TAB_NA$PRES))
     type490="3" #catherine  
     TAB_490=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
     newdata_490 <- TAB_490[order(as.numeric(row.names(TAB_490))),]  #to sort for the initial row order, NA included
-    str(newdata_490) 
+    #str(newdata_490) 
     # newdata_490$FLAG_490_QC is the right string of characters to be included in NETCDF file
   }
   
@@ -669,11 +669,11 @@ pts.flag3minus_490=which(flag3minus_490==T) #for checking sunny points during ov
       FLAG_490_QC[pts.flag3_490]="3" #FLAG 3 pts assigned in STEP 2a #no-useful command but it is kept just to remind the STEP of assignement
       FLAG_490_QC[pts.flag4_490]="3" #FLAG 4 pts assigned in STEP 2a
       TAB_complete$FLAG_490_QC=FLAG_490_QC   
-      TAB_NA$FLAG_490_QC="NA"
+      TAB_NA$FLAG_490_QC=rep("NA", length(TAB_NA$PRES))
       type490="3" #catherine  
       TAB_490=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
       newdata_490 <- TAB_490[order(as.numeric(row.names(TAB_490))),]  #to sort for the initial row order, NA included
-      str(newdata_490)  
+      #str(newdata_490)  
       # newdata_490$FLAG_490_QC is the right string of characters to be included in NETCDF file
     }
     
@@ -702,11 +702,11 @@ pts.flag3minus_490=which(flag3minus_490==T) #for checking sunny points during ov
         FLAG_490_QC[no.cloudy_490[pts.flag3_490_ADJ]]="3" #FLAG 3 assigned in STEP 4a
         FLAG_490_QC[no.cloudy_490[pts.flag4_490_ADJ]]="3" #FLAG 4 assigned in STEP 4a
         TAB_complete$FLAG_490_QC=FLAG_490_QC
-        TAB_NA$FLAG_490_QC="NA"
+        TAB_NA$FLAG_490_QC=rep("NA", length(TAB_NA$PRES))
         type490="2" #catherine  
         TAB_490=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_490 <- TAB_490[order(as.numeric(row.names(TAB_490))),]  #to sort for the initial row order, NA included
-        str(newdata_490)
+        #str(newdata_490)
         # newdata_490$FLAG_490_QC is the right string of characters to be included in NETCDF file
       }
       
@@ -738,22 +738,22 @@ pts.flag3minus_490=which(flag3minus_490==T) #for checking sunny points during ov
         FLAG_490_QC[no.cloudy_490[pts.flag3_490_ADJ]]="3" #FLAG 3 assigned in STEP 4b
         FLAG_490_QC[no.cloudy_490[pts.flag4_490_ADJ]]="3" #FLAG 4 assigned in STEP 4b
         TAB_complete$FLAG_490_QC=FLAG_490_QC   
-        TAB_NA$FLAG_490_QC="NA"
+        TAB_NA$FLAG_490_QC=rep("NA", length(TAB_NA$PRES))
 	type490="1" #catherine  
         TAB_490=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_490 <- TAB_490[order(as.numeric(row.names(TAB_490))),]  #to sort for the initial row order, NA included
-        str(newdata_490)
+        #str(newdata_490)
         # newdata_490$FLAG_490_QC is the right string of characters to be included in NETCDF file
       }}}}}
 } 
 } else {
 	FLAG_490_QC=rep("3", length(TAB_complete$IRR_490)) #ASSIGNEMENT CORRESPONDING to STEP 3
 	TAB_complete$FLAG_490_QC=FLAG_490_QC   
-	TAB_NA$FLAG_490_QC="NA"
+	TAB_NA$FLAG_490_QC=rep("NA", length(TAB_NA$PRES))
 	type490="3" #catherine 
         TAB_490=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_490 <- TAB_490[order(as.numeric(row.names(TAB_490))),]  #to sort for the initial row order, NA included
-        str(newdata_490)
+        #str(newdata_490)
 }
 }
 # END of RT-QC for the CHANNEL 490 nm    
@@ -794,11 +794,11 @@ pts.flag3minus_PAR=which(flag3minus_PAR==T) #for checking sunny points during ov
   if(length(pts.flag3plus_PAR)>length(pts.flag3minus_PAR) & rsquared_PAR<0.995) { #THIS is STEP 2b:SWINGING PROFILE IDENTIFICATION
     FLAG_PAR_QC=rep("3", length(TAB_complete$PAR)) #stop analysis #also dark values are degraded to FLAG 4 #ALL POINTS ARE ASSIGNED TO FLAG 4
     TAB_complete$FLAG_PAR_QC=FLAG_PAR_QC   
-    TAB_NA$FLAG_PAR_QC="NA"
+    TAB_NA$FLAG_PAR_QC=rep("NA", length(TAB_NA$PRES))
     typePAR="3" #catherine  
     TAB_PAR=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
     newdata_PAR <- TAB_PAR[order(as.numeric(row.names(TAB_PAR))),]  #to sort for the initial row order, NA included
-    str(newdata_PAR) 
+    #str(newdata_PAR) 
     # newdata_PAR$FLAG_PAR_QC is the right string of characters to be included in NETCDF file
   } 
   #END of STEP 2b
@@ -817,11 +817,11 @@ pts.flag3minus_PAR=which(flag3minus_PAR==T) #for checking sunny points during ov
   if(rsquared_PAR_2<=0.990) { #FLAG ASSIGNMENT CORRESPONDING TO STEP 3
     FLAG_PAR_QC=rep("3", length(TAB_complete$PAR)) #stop analysis #also dark values are degraded to FLAG 4 #ALL POINTS ARE ASSIGNED TO FLAG 4
     TAB_complete$FLAG_PAR_QC=FLAG_PAR_QC   
-    TAB_NA$FLAG_PAR_QC="NA"
+    TAB_NA$FLAG_PAR_QC=rep("NA", length(TAB_NA$PRES))
     typePAR="3" #catherine  
     TAB_PAR=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
     newdata_PAR <- TAB_PAR[order(as.numeric(row.names(TAB_PAR))),]  #to sort for the initial row order, NA included
-    str(newdata_PAR) 
+    #str(newdata_PAR) 
     # newdata_PAR$FLAG_PAR_QC is the right string of characters to be included in NETCDF file
   }
   
@@ -831,11 +831,11 @@ pts.flag3minus_PAR=which(flag3minus_PAR==T) #for checking sunny points during ov
       FLAG_PAR_QC[pts.flag3_PAR]="3" #FLAG 3 pts assigned in STEP 2a #no-useful command but it is kept just to remind the STEP of assignement
       FLAG_PAR_QC[pts.flag4_PAR]="3" #FLAG 4 pts assigned in STEP 2a
       TAB_complete$FLAG_PAR_QC=FLAG_PAR_QC   
-      TAB_NA$FLAG_PAR_QC="NA"
+      TAB_NA$FLAG_PAR_QC=rep("NA", length(TAB_NA$PRES))
       typePAR="3" #catherine  
       TAB_PAR=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
       newdata_PAR <- TAB_PAR[order(as.numeric(row.names(TAB_PAR))),]  #to sort for the initial row order, NA included
-      str(newdata_PAR)  
+      #str(newdata_PAR)  
       # newdata_PAR$FLAG_PAR_QC is the right string of characters to be included in NETCDF file
     }
     
@@ -864,11 +864,11 @@ pts.flag3minus_PAR=which(flag3minus_PAR==T) #for checking sunny points during ov
         FLAG_PAR_QC[no.cloudy_PAR[pts.flag3_PAR_ADJ]]="3" #FLAG 3 assigned in STEP 4a
         FLAG_PAR_QC[no.cloudy_PAR[pts.flag4_PAR_ADJ]]="3" #FLAG 4 assigned in STEP 4a
         TAB_complete$FLAG_PAR_QC=FLAG_PAR_QC
-        TAB_NA$FLAG_PAR_QC="NA"
+        TAB_NA$FLAG_PAR_QC=rep("NA", length(TAB_NA$PRES))
 	typePAR="2" #catherine  
         TAB_PAR=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_PAR <- TAB_PAR[order(as.numeric(row.names(TAB_PAR))),]  #to sort for the initial row order, NA included
-        str(newdata_PAR)
+        #str(newdata_PAR)
         # newdata_PAR$FLAG_PAR_QC is the right string of characters to be included in NETCDF file
       }
       
@@ -900,22 +900,22 @@ pts.flag3minus_PAR=which(flag3minus_PAR==T) #for checking sunny points during ov
         FLAG_PAR_QC[no.cloudy_PAR[pts.flag3_PAR_ADJ]]="3" #FLAG 3 assigned in STEP 4b
         FLAG_PAR_QC[no.cloudy_PAR[pts.flag4_PAR_ADJ]]="3" #FLAG 4 assigned in STEP 4b
         TAB_complete$FLAG_PAR_QC=FLAG_PAR_QC   
-        TAB_NA$FLAG_PAR_QC="NA"
+        TAB_NA$FLAG_PAR_QC=rep("NA", length(TAB_NA$PRES))
 	typePAR="1" #catherine  
         TAB_PAR=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_PAR <- TAB_PAR[order(as.numeric(row.names(TAB_PAR))),]  #to sort for the initial row order, NA included
-        str(newdata_PAR)
+        #str(newdata_PAR)
         # newdata_PAR$FLAG_PAR_QC is the right string of characters to be included in NETCDF file
       }}}}}
 } 
 } else {
 	FLAG_PAR_QC=rep("3", length(TAB_complete$PAR)) #ASSIGNEMENT CORRESPONDING to STEP 3
 	TAB_complete$FLAG_PAR_QC=FLAG_PAR_QC   
-	TAB_NA$FLAG_PAR_QC="NA"
+	TAB_NA$FLAG_PAR_QC=rep("NA", length(TAB_NA$PRES))
 	typePAR="3" #catherine 
         TAB_PAR=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
         newdata_PAR <- TAB_PAR[order(as.numeric(row.names(TAB_PAR))),]  #to sort for the initial row order, NA included
-        str(newdata_PAR)
+        #str(newdata_PAR)
 }
 }
 # END of RT-QC for the CHANNEL PAR
