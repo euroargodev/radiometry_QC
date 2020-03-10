@@ -37,8 +37,9 @@ for (profile_actual in profile_list) {
     
     STATION_PARAMETERS = ncvar_get(filenc, "STATION_PARAMETERS")
     param_name = "DOWNWELLING_PAR"
-    id_prof = which(STATION_PARAMETERS==str_pad(param_name, 64, side="right"), arr.ind=TRUE)[2]
-    if (length(id_prof)!=1) {
+    id_param = grep(str_pad(param_name, 64, side="right"), STATION_PARAMETERS)
+    id_prof = arrayInd(id_param, dim(STATION_PARAMETERS))[2]
+    if (length(id_param)!=1) {
         next
     }
     
