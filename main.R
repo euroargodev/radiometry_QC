@@ -3,6 +3,7 @@ library(stringr)
 library(ggplot2)
 library(RColorBrewer)
 library(gridExtra)
+library(parallel)
 
 source("~/Documents/radiometry/RT_QC_radiometry_function_oao_2.R")
 
@@ -27,7 +28,7 @@ WMO = "6901524"
 
 profile_list = substr(prof_id[which(substr(prof_id,3,9)==WMO)], 3, 14)
 
-for (profile_actual in profile_list) {
+plot_QC <- function(profile_actual) {
 
     iii = which(substr(prof_id,3,14)==profile_actual) #identify profile position in the index
     
@@ -40,7 +41,8 @@ for (profile_actual in profile_list) {
     id_param = grep(str_pad(param_name, 64, side="right"), STATION_PARAMETERS)
     id_prof = arrayInd(id_param, dim(STATION_PARAMETERS))[2]
     if (length(id_param)!=1) {
-        next
+        nc_close(filenc)
+        return(NULL)
     }
     
     PRES = ncvar_get(filenc, "PRES")[,id_prof]
@@ -162,6 +164,12 @@ for (profile_actual in profile_list) {
     png(plot_name, width = 800, height = 400)
     grid.arrange(g1, g2, g3, g4, nrow=1)
     dev.off()
+    
+    return(list("type380"=QC_flags$type380, "type412"=QC_flags$type412, "type490"=QC_flags$type490, "typePAR"=QC_flags$typePAR))
 
 }
 
+num_cores = detectCores()
+M = mcmapply(plot_QC, profile_list[260:270], mc.cores=num_cores, SIMPLIFY=FALSE)
+
+write_json(M, path="profile_types.json", auto_unbox=T, pretty=T, null="list")
