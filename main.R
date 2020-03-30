@@ -4,10 +4,12 @@ library(ggplot2)
 library(RColorBrewer)
 library(gridExtra)
 library(parallel)
+library(jsonlite)
 
 source("~/Documents/radiometry/RT_QC_radiometry_function_oao_2.R")
 
-path_to_netcdf = "/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
+#path_to_netcdf = "/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
+path_to_netcdf = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
 
 index_ifremer = read.table("~/Documents/radiometry/argo_bio-profile_index.txt", sep=",", header = T)
 
