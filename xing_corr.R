@@ -47,7 +47,7 @@ night = which(solar_elev < -5)
 profile_night = profile_list[night]
 files_night = files_list[night]
 
-get_xing_AB <- function(path_to_netcdf, file_name, PARAM) {
+get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 	
 	file_B = paste(path_to_netcdf, file_name, sep="")
 	
@@ -64,9 +64,27 @@ get_xing_AB <- function(path_to_netcdf, file_name, PARAM) {
 	filenc_B = nc_open(file_B)
 	filenc_C = nc_open(file_C)
 	
+    parameters_B = ncvar_get(filenc_B,"STATION_PARAMETERS") 
+    parameters_C = ncvar_get(filenc_C,"STATION_PARAMETERS") 
+    id_param_arr_B = which(parameters_B==str_pad(PARAM_NAME, 64, side="right"), arr.ind=TRUE)
+    id_param_arr_C = which(parameters_C==str_pad("TEMP", 16, side="right"), arr.ind=TRUE)
+	if (length(id_param_arr_B)==2) id_prof_B=id_param_arr_B[2] else id_prof_B=id_param_arr_B[1,2]
+	if (length(id_param_arr_C)==2) id_prof_C=id_param_arr_C[2] else id_prof_C=id_param_arr_C[1,2]
+	n_levels_B = filenc_B$dim$N_LEVELS$len
+	n_levels_C = filenc_C$dim$N_LEVELS$len
+	
+	PARAM = ncvar_get(filenc_B, PARAM_NAME, start=c(1,id_prof_B), count=c(n_levels_B,1))	
+	TEMP = ncvar_get(filenc_C, "TEMP", start=c(1,id_prof_C), count=c(n_levels_C,1))	
+	
+	PRES_B = ncvar_get(filenc_B, "PRES", start=c(1,id_prof_B), count=c(n_levels_B,1))	
+	PRES_C = ncvar_get(filenc_C, "PRES", start=c(1,id_prof_C), count=c(n_levels_C,1))	
 
 	nc_close(filenc_B)
 	nc_close(filenc_C)
+
+	return(list("a"=PARAM, "b"=TEMP, "c"=PRES_B, "d"=PRES_C))
+	#return(list("a"=parameters_C, "b"=id_param_arr_C))
 }
 
-ab = get_xing_AB(path_to_netcdf, files_night[1], "DOWNWELLING_PAR") 
+ab = get_Ts_match(path_to_netcdf, files_night[1], "RAW_DOWNWELLING_PAR") 
+cd = get_Ts_match(path_to_netcdf, files_night[2], "RAW_DOWNWELLING_PAR") 
