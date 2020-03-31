@@ -26,6 +26,7 @@ WMO = "6901524"
 #WMO = "6902827"
 
 profile_list = substr(prof_id[which(wod==WMO)], 3, 14)
+files_list = files[which(wod==WMO)]
 lat_list = lat[which(wod==WMO)]
 lon_list = lon[which(wod==WMO)]
 prof_date_list = prof_date[which(wod==WMO)]
@@ -35,11 +36,37 @@ day_list = as.numeric(str_sub(prof_date_list,7,8))
 hour_list = as.numeric(str_sub(prof_date_list,9,10))
 minute_list = as.numeric(str_sub(prof_date_list,11,12))
 second_list = as.numeric(str_sub(prof_date_list,13,14))
-
-tu_list = (hour_list + minute_list/60 + second_list/3600)# / 24
+tu_list = (hour_list + minute_list/60 + second_list/3600)
 
 M = mapply(possol.vec, month=month_list, jday=day_list, tu=tu_list, xlon=lon_list, xlat=lat_list)
 
 solar_elev = unlist(M, use.names=F)
 
 night = which(solar_elev < -5)
+
+profile_night = profile_list[night]
+files_night = files_list[night]
+
+get_xing_AB <- function(path_to_netcdf, file_name, PARAM) {
+	
+	file_B = paste(path_to_netcdf, file_name, sep="")
+	
+	# get core file name
+	path_split = unlist(strsplit(file_name, "/"))
+	path_to_profile = paste(path_split[1], path_split[2], path_split[3], sep="/")
+	filenc_name_C = paste("?",substring(path_split[4], 3),sep="")
+	file_C = paste(path_to_netcdf, path_to_profile, "/", filenc_name_C, sep="") 
+	file_C = system2("ls", file_C, stdout=TRUE) # identify R or D file 
+	if (length(file_C)==2) { # if both R and D files exist
+		file_C = file_C[1] # use the D file which is first in alphabetical order
+	}
+		
+	filenc_B = nc_open(file_B)
+	filenc_C = nc_open(file_C)
+	
+
+	nc_close(filenc_B)
+	nc_close(filenc_C)
+}
+
+ab = get_xing_AB(path_to_netcdf, files_night[1], "DOWNWELLING_PAR") 
