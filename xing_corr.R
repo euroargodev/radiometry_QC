@@ -76,24 +76,36 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 	if (length(id_param_arr_B)==2) id_prof_B=id_param_arr_B[2] else id_prof_B=id_param_arr_B[1,2]
 	if (length(id_param_arr_C)==2) id_prof_C=id_param_arr_C[2] else id_prof_C=id_param_arr_C[1,2]
 	n_levels_B = filenc_B$dim$N_LEVELS$len
-	n_levels_C = filenc_C$dim$N_LEVELS$len
+	n_levels_C = filenc_C$dim$N_LEVELS$len # should be the same as n_levels_B
 	
 	PARAM = ncvar_get(filenc_B, PARAM_NAME, start=c(1,id_prof_B), count=c(n_levels_B,1))	
 	TEMP = ncvar_get(filenc_C, "TEMP", start=c(1,id_prof_C), count=c(n_levels_C,1))	
-	
 	PRES_B = ncvar_get(filenc_B, "PRES", start=c(1,id_prof_B), count=c(n_levels_B,1))	
 	PRES_C = ncvar_get(filenc_C, "PRES", start=c(1,id_prof_C), count=c(n_levels_C,1))	
-	###TODO remove bad QC data
+
+	PARAM_QC = unlist(str_split(ncvar_get(filenc_B, paste(PARAM_NAME,"_QC",sep=""), start=c(1,id_prof_B), count=c(n_levels_B,1)), ""))
+	TEMP_QC = unlist(str_split(ncvar_get(filenc_C, "TEMP_QC", start=c(1,id_prof_C), count=c(n_levels_C,1)), ""))
+	PRES_B_QC = unlist(str_split(ncvar_get(filenc_C, "PRES_QC", start=c(1,id_prof_B), count=c(n_levels_C,1)), ""))
+	PRES_C_QC = unlist(str_split(ncvar_get(filenc_C, "PRES_QC", start=c(1,id_prof_C), count=c(n_levels_C,1)), ""))
+	
+	bad_data_B = which(PARAM_QC=="3" | PARAM_QC=="4" | PRES_B_QC=="3" | PRES_B_QC=="4")
+	bad_data_C = which(TEMP_QC=="3" | TEMP_QC=="4" | PRES_C_QC=="3" | PRES_C_QC=="4")
+	PARAM[bad_data_B] = NA
+	TEMP[bad_data_C] = NA
+	PRES_B[bad_data_B] = NA
+	PRES_C[bad_data_C] = NA
 	
 	nc_close(filenc_B)
 	nc_close(filenc_C)
 
 	fitted_Ts = sensor_temp(TEMP, PRES_C, PRES_B)
 
-	#return(list("a"=PARAM, "b"=TEMP, "c"=PRES_B, "d"=PRES_C))
-	#return(list("a"=parameters_C, "b"=id_param_arr_C))
+	#return(list("a"=TEMP_QC, "b"=PARAM_QC, "c"=PRES_B_QC, "d"=PRES_C_QC))
 	return(list("PARAM"=PARAM, "Ts"=fitted_Ts))
 }
+
+#ab = get_Ts_match(path_to_netcdf, files_night[1], "DOWNWELLING_PAR")
+#print(ab)
 
 PAR = NULL
 PAR_Ts = NULL
