@@ -3,6 +3,7 @@ library(stringr)
 library(parallel)
 
 source("~/Documents/radiometry/possol.R")
+source("~/Documents/radiometry/sensor_temp.R")
 
 #path_to_netcdf = "/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
 path_to_netcdf = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
@@ -22,14 +23,18 @@ lon = index_ifremer$longitude #retrieve the longitude of all profiles as a vecto
 prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 
 
-WMO = "6901524"
+WMO = "6901525"
+#WMO = "6901524"
 #WMO = "6902827"
 
-profile_list = substr(prof_id[which(wod==WMO)], 3, 14)
-files_list = files[which(wod==WMO)]
-lat_list = lat[which(wod==WMO)]
-lon_list = lon[which(wod==WMO)]
-prof_date_list = prof_date[which(wod==WMO)]
+subset = which( wod==WMO & substr(prof_id,14,14)!="D" )
+#subset = which( wod==WMO )
+
+profile_list = substr(prof_id[subset], 3, 14)
+files_list = files[subset]
+lat_list = lat[subset]
+lon_list = lon[subset]
+prof_date_list = prof_date[subset]
 
 month_list = as.numeric(str_sub(prof_date_list,5,6))
 day_list = as.numeric(str_sub(prof_date_list,7,8))
@@ -78,13 +83,25 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 	
 	PRES_B = ncvar_get(filenc_B, "PRES", start=c(1,id_prof_B), count=c(n_levels_B,1))	
 	PRES_C = ncvar_get(filenc_C, "PRES", start=c(1,id_prof_C), count=c(n_levels_C,1))	
-
+	###TODO remove bad QC data
+	
 	nc_close(filenc_B)
 	nc_close(filenc_C)
 
-	return(list("a"=PARAM, "b"=TEMP, "c"=PRES_B, "d"=PRES_C))
+	fitted_Ts = sensor_temp(TEMP, PRES_C, PRES_B)
+
+	#return(list("a"=PARAM, "b"=TEMP, "c"=PRES_B, "d"=PRES_C))
 	#return(list("a"=parameters_C, "b"=id_param_arr_C))
+	return(list("PARAM"=PARAM, "Ts"=fitted_Ts))
 }
 
-ab = get_Ts_match(path_to_netcdf, files_night[1], "RAW_DOWNWELLING_PAR") 
-cd = get_Ts_match(path_to_netcdf, files_night[2], "RAW_DOWNWELLING_PAR") 
+PAR = NULL
+PAR_Ts = NULL
+
+for (file_name in files_night) {
+	match = get_Ts_match(path_to_netcdf, file_name, "DOWNWELLING_PAR")
+	PAR = c(PAR, match$PARAM)
+	PAR_Ts = c(PAR_Ts, match$Ts)
+}
+
+plot(PAR_Ts, PAR)
