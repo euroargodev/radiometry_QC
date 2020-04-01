@@ -6,14 +6,20 @@ sensor_temp <- function(TEMP, PRES_TEMP, PRES_PARAM) {
 
 	Tw = rev(TEMP[!is.na(TEMP)])
 	Tw_pres = rev(PRES_TEMP[!is.na(PRES_TEMP)])
-	Tw_time = (max(Tw_pres) - Tw_pres) * asc_speed
+	Tw_time = (max(Tw_pres) - Tw_pres) / asc_speed #assuming 1m/db for now
+
 	n_time = length(Tw)
 	
 	Ts = rep(NA, n_time)
 	Ts[1] = Tw[1]
 	Ts_time = Tw_time + delta_t
+	Ts_pres = max(Tw_pres) - Ts_time*asc_speed
 
 	for (n in 2:n_time) {
 		Ts[n] = Ts[n-1] + k * (Tw_time[n]-Tw_time[n-1]) * (Tw[n-1]-Ts[n-1])
 	}
+	
+	fitted_Ts = approx(Ts_pres, Ts, xout=PRES_PARAM)$y
+	
+	return(fitted_Ts)
 }
