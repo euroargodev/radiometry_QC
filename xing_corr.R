@@ -1,6 +1,8 @@
 library(ncdf4)
 library(stringr)
 library(parallel)
+library(ggplot2)
+library(viridis)
 
 source("~/Documents/radiometry/possol.R")
 source("~/Documents/radiometry/sensor_temp.R")
@@ -51,6 +53,7 @@ night = which(solar_elev < -5)
 
 profile_night = profile_list[night]
 files_night = files_list[night]
+date_night = as.Date(as.character(prof_date_list[night]), format="%Y%m%d%H%M%S", tz="UTC")
 
 get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 	
@@ -109,11 +112,20 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 
 PAR = NULL
 PAR_Ts = NULL
+PAR_date = NULL
 
-for (file_name in files_night) {
-	match = get_Ts_match(path_to_netcdf, file_name, "DOWNWELLING_PAR")
+for (i in 1:length(files_night)) {
+	match = get_Ts_match(path_to_netcdf, files_night[i], "DOWNWELLING_PAR")
 	PAR = c(PAR, match$PARAM)
 	PAR_Ts = c(PAR_Ts, match$Ts)
+	PAR_date_new = rep(date_night[i], length(match$PARAM))
+	PAR_date_new[which(is.na(match$PARAM))] = NA
+	PAR_date = c(PAR_date, PAR_date_new)
 }
+#PAR_date = as.Date(PAR_date, origin="1970-01-01")
 
-plot(PAR_Ts, PAR)
+PAR_dataf = data.frame("PAR"=PAR, "PAR_Ts"=PAR_Ts, "PAR_date"=PAR_date)
+
+g1 = ggplot(PAR_dataf, aes(x=PAR_Ts, y=PAR, color=PAR_date)) +
+	geom_point()+
+	scale_color_viridis()
