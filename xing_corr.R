@@ -110,22 +110,35 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 #ab = get_Ts_match(path_to_netcdf, files_night[1], "DOWNWELLING_PAR")
 #print(ab)
 
+PARAM_NAMES = c("DOWNWELLING_PAR", "DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", "DOWN_IRRADIANCE490")
+
+all_PARAM_match = NULL
+
 PAR = NULL
 PAR_Ts = NULL
 PAR_date = NULL
+PAR_name = NULL
 
-for (i in 1:length(files_night)) {
-	match = get_Ts_match(path_to_netcdf, files_night[i], "DOWNWELLING_PAR")
-	PAR = c(PAR, match$PARAM)
-	PAR_Ts = c(PAR_Ts, match$Ts)
-	PAR_date_new = rep(date_night[i], length(match$PARAM))
-	PAR_date_new[which(is.na(match$PARAM))] = NA
-	PAR_date = c(PAR_date, PAR_date_new)
+for (param_name in PARAM_NAMES) {
+	for (i in 1:length(files_night)) {
+		match = get_Ts_match(path_to_netcdf, files_night[i], param_name)
+
+		PAR = c(PAR, match$PARAM)
+		PAR_Ts = c(PAR_Ts, match$Ts)
+
+		PAR_date_new = rep(date_night[i], length(match$PARAM))
+		PAR_date_new[which(is.na(match$PARAM))] = NA
+		PAR_date = c(PAR_date, PAR_date_new)
+		
+		PAR_name_new = rep(param_name, length(match$PARAM))
+		PAR_name_new[which(is.na(match$PARAM))] = NA
+		PAR_name = c(PAR_name, PAR_name_new)
+	}
+	#PAR_date = as.Date(PAR_date, origin="1970-01-01")
 }
-#PAR_date = as.Date(PAR_date, origin="1970-01-01")
+PAR_dataf = data.frame("PARAM"=PAR, "PARAM_Ts"=PAR_Ts, "PARAM_date"=PAR_date, "PARAM_name"=PAR_name)
 
-PAR_dataf = data.frame("PAR"=PAR, "PAR_Ts"=PAR_Ts, "PAR_date"=PAR_date)
-
-g1 = ggplot(PAR_dataf, aes(x=PAR_Ts, y=PAR, color=PAR_date)) +
-	geom_point()+
-	scale_color_viridis()
+g1 = ggplot(na.omit(PAR_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
+	geom_point() +
+	scale_color_viridis() +
+	facet_wrap(~PARAM_name, scale="free_y")
