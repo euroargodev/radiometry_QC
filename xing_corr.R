@@ -107,9 +107,6 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 	return(list("PARAM"=PARAM, "Ts"=fitted_Ts))
 }
 
-#ab = get_Ts_match(path_to_netcdf, files_night[1], "DOWNWELLING_PAR")
-#print(ab)
-
 PARAM_NAMES = c("DOWNWELLING_PAR", "DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", "DOWN_IRRADIANCE490")
 
 all_PARAM_match = NULL
@@ -142,3 +139,26 @@ g1 = ggplot(na.omit(PAR_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group
 	geom_point() +
 	scale_color_viridis() +
 	facet_wrap(~PARAM_name, scale="free_y")
+
+fitted_coeff = NULL
+A_axis = rep(NA, 4)
+B_axis = rep(NA, 4)
+for (i in 1:length(PARAM_NAMES)) {
+	subset_PAR = which(PAR_dataf$PARAM_name==PARAM_NAMES[i] & !is.na(PAR_dataf$PARAM_Ts))
+
+	fit_AB = lm(PARAM ~ PARAM_Ts, data=PAR_dataf, subset=subset_PAR) 
+
+	fitted_coeff[[param_name]] = fit_AB$coefficients
+	A_axis[i] = fit_AB$coefficients[[1]]
+	B_axis[i] = fit_AB$coefficients[[2]]
+}
+
+Ts_range = range(PAR_dataf$PARAM_Ts, na.rm=T)
+
+data_fit = data.frame(
+	PARAM_name = rep(PARAM_NAMES, each=2),
+	x = rep(Ts_range, 4),
+	y = rep(A_axis, each=2) + rep(B_axis, each=2) * rep(Ts_range, 4)
+)
+
+g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
