@@ -104,7 +104,7 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 	fitted_Ts = sensor_temp(TEMP, PRES_C, PRES_B)
 
 	#return(list("a"=TEMP_QC, "b"=PARAM_QC, "c"=PRES_B_QC, "d"=PRES_C_QC))
-	return(list("PARAM"=PARAM, "Ts"=fitted_Ts))
+	return(list("PARAM"=PARAM, "Ts"=fitted_Ts, "PRES"=PRES_B))
 }
 
 PARAM_NAMES = c("DOWNWELLING_PAR", "DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", "DOWN_IRRADIANCE490")
@@ -162,3 +162,19 @@ data_fit = data.frame(
 )
 
 g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
+
+
+
+n_cores = detectCores()
+all_match_380 = mcmapply(get_Ts_match, file_name=files_list[120:150], mc.cores=n_cores, SIMPLIFY=FALSE,
+							MoreArgs=list(path_to_netcdf=path_to_netcdf, PARAM_NAME="DOWN_IRRADIANCE380"))
+
+
+corr = all_match_380[[9]]$PARAM - ( A_axis[2] + B_axis[2] * all_match_380[[9]]$Ts )
+
+dataf3 = data.frame(x=all_match_380[[9]]$PARAM, y=all_match_380[[9]]$PRES, corr=corr)
+
+g3 = ggplot(na.omit(dataf3), aes(x=x, y=y)) +
+	geom_point() +
+	scale_x_continuous(trans="log") +
+	scale_y_continuous(trans="reverse")
