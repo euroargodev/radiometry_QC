@@ -3,6 +3,7 @@ library(stringr)
 library(parallel)
 library(ggplot2)
 library(viridis)
+library(gridExtra)
 
 source("~/Documents/radiometry/possol.R")
 source("~/Documents/radiometry/sensor_temp.R")
@@ -166,15 +167,25 @@ g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
 
 
 n_cores = detectCores()
-all_match_380 = mcmapply(get_Ts_match, file_name=files_list[120:150], mc.cores=n_cores, SIMPLIFY=FALSE,
+all_match_380 = mcmapply(get_Ts_match, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
 							MoreArgs=list(path_to_netcdf=path_to_netcdf, PARAM_NAME="DOWN_IRRADIANCE380"))
 
+plot_corr_380 <- function(n) {
 
-corr = all_match_380[[9]]$PARAM - ( A_axis[2] + B_axis[2] * all_match_380[[9]]$Ts )
+	corr = all_match_380[[n]]$PARAM - ( A_axis[2] + B_axis[2] * all_match_380[[n]]$Ts ) + 1.5e-5
 
-dataf3 = data.frame(x=all_match_380[[9]]$PARAM, y=all_match_380[[9]]$PRES, corr=corr)
+	dataf3 = data.frame(x=all_match_380[[n]]$PARAM, y=all_match_380[[n]]$PRES, corr=corr, temp=all_match_380[[n]]$Ts)
 
-g3 = ggplot(na.omit(dataf3), aes(x=x, y=y)) +
-	geom_point() +
-	scale_x_continuous(trans="log") +
-	scale_y_continuous(trans="reverse")
+	g3 = ggplot(na.omit(dataf3), aes(x=x, y=y)) +
+		geom_point() +
+		scale_x_continuous(trans="log") +
+		scale_y_continuous(trans="reverse") +
+		geom_path(mapping=aes(x=corr, y=y), color="red")
+
+	g4 = ggplot(na.omit(dataf3), aes(x=temp, y=y)) +
+		geom_point() + 
+		scale_y_continuous(trans="reverse")
+
+	grid.arrange(g3, g4, nrow=1)
+
+}
