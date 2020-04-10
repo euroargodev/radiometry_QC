@@ -172,20 +172,26 @@ all_match_380 = mcmapply(get_Ts_match, file_name=files_list, mc.cores=n_cores, S
 
 plot_corr_380 <- function(n) {
 
-	corr = all_match_380[[n]]$PARAM - ( A_axis[2] + B_axis[2] * all_match_380[[n]]$Ts ) + 1.5e-5
+	corr = all_match_380[[n]]$PARAM - ( A_axis[2] + B_axis[2] * all_match_380[[n]]$Ts ) #+ 1.5e-5
 
-	dataf3 = data.frame(x=all_match_380[[n]]$PARAM, y=all_match_380[[n]]$PRES, corr=corr, temp=all_match_380[[n]]$Ts)
+	dataf3 = data.frame(IRR380=all_match_380[[n]]$PARAM, PRES=all_match_380[[n]]$PRES, corr=corr, Ts=all_match_380[[n]]$Ts)
 
-	g3 = ggplot(na.omit(dataf3), aes(x=x, y=y)) +
+	g3 = ggplot(na.omit(dataf3), aes(x=IRR380, y=PRES)) +
 		geom_point() +
-		scale_x_continuous(trans="log") +
+		scale_x_continuous(trans="log10") +
 		scale_y_continuous(trans="reverse") +
-		geom_path(mapping=aes(x=corr, y=y), color="red")
+		geom_path(mapping=aes(x=corr, y=PRES), color="red")
+	
+	g3_1 = ggplot(na.omit(dataf3), aes(x=IRR380, y=PRES)) +
+		geom_point() +
+		scale_x_continuous(limits=c(-1e-4, 1e-4)) +
+		scale_y_continuous(trans="reverse") +
+		geom_path(mapping=aes(x=corr, y=PRES), color="red")
 
-	g4 = ggplot(na.omit(dataf3), aes(x=temp, y=y)) +
+	g4 = ggplot(na.omit(dataf3), aes(x=Ts, y=PRES)) +
 		geom_point() + 
 		scale_y_continuous(trans="reverse")
 
-	grid.arrange(g3, g4, nrow=1)
+	grid.arrange(g3_1, g3, g4, nrow=1)
 
 }
