@@ -26,8 +26,8 @@ lon = index_ifremer$longitude #retrieve the longitude of all profiles as a vecto
 prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 
 
-WMO = "6901525"
-#WMO = "6901524"
+#WMO = "6901525"
+WMO = "6901524"
 #WMO = "6902827"
 
 subset = which( wod==WMO & substr(prof_id,14,14)!="D" )
@@ -195,3 +195,44 @@ plot_corr_380 <- function(n) {
 	grid.arrange(g3_1, g3, g4, nrow=1)
 
 }
+
+traj_name_B = paste(path_to_netcdf, dac[subset[1]], "/", WMO, "/", WMO, "_BRtraj.nc", sep="")
+traj_name_C = paste(path_to_netcdf, dac[subset[1]], "/", WMO, "/", WMO, "_Rtraj.nc", sep="")
+
+fnc_B = nc_open(traj_name_B)
+fnc_C = nc_open(traj_name_C)
+
+irr380 = ncvar_get(fnc_B, "DOWN_IRRADIANCE380")
+temp = ncvar_get(fnc_C, "TEMP")
+juld_B = ncvar_get(fnc_B, "JULD")
+juld_C = ncvar_get(fnc_C, "JULD")
+code = ncvar_get(fnc_B, "MEASUREMENT_CODE")
+
+nc_close(fnc_B)
+nc_close(fnc_C)
+
+drift_B = which(!is.na(irr380) & code==290) #290 may not be the only correct code
+drift_C = which(!is.na(temp) & code==290) #290 may not be the only correct code
+
+drift_match = rep(NA, length(drift_B))
+for (i in 1:length(drift_B)) {
+	match_dist = abs(juld_B[drift_B[i]] - juld_C[drift_C])
+	drift_match[i] = min(which( match_dist == min(match_dist) ))
+}
+
+k = 0.19/60 # s^-1
+delta_t = 54 # s
+lag = (delta_t + 1/k) / (3600*24) # d # lag for Ts when trailing a linear Tw
+
+Ts = rep(NA, length(drift_C))
+Ts[1] = temp[drift_C[1]]
+for (i in 2:length(drift_C)) {
+	Ts[i] = temp[drift_C[i]] - lag * (temp[drift_C[i]] - temp[drift_C[i-1]]) / (juld_C[drift_C[i]] - juld_C[drift_C[i-1]])
+} # we assume a long time between drift measurement and linear rate of change between them
+
+
+plot(temp[drift_C[drift_match]], irr380[drift_B])
+points(Ts[drift_match], irr380[drift_B], pch='+', col="red")
+
+
+
