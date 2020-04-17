@@ -26,8 +26,8 @@ lon = index_ifremer$longitude #retrieve the longitude of all profiles as a vecto
 prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 
 
-#WMO = "6901525"
-WMO = "6901524"
+WMO = "6901525"
+#WMO = "6901524"
 #WMO = "6902827"
 
 subset = which( wod==WMO & substr(prof_id,14,14)!="D" )
@@ -149,7 +149,7 @@ for (i in 1:length(PARAM_NAMES)) {
 
 	fit_AB = lm(PARAM ~ PARAM_Ts, data=PAR_dataf, subset=subset_PAR) 
 
-	fitted_coeff[[param_name]] = fit_AB$coefficients
+	fitted_coeff[[PARAM_NAMES[i]]] = fit_AB$coefficients
 	A_axis[i] = fit_AB$coefficients[[1]]
 	B_axis[i] = fit_AB$coefficients[[2]]
 }
@@ -231,8 +231,33 @@ for (i in 2:length(drift_C)) {
 } # we assume a long time between drift measurement and linear rate of change between them
 
 
-plot(temp[drift_C[drift_match]], irr380[drift_B])
-points(Ts[drift_match], irr380[drift_B], pch='+', col="red")
+#plot(temp[drift_C[drift_match]], irr380[drift_B])
+#points(Ts[drift_match], irr380[drift_B], pch='+', col="red")
+
+drift_dataf = data.frame("PARAM"=irr380[drift_B], "PARAM_Ts"=Ts[drift_match], "PARAM_date"=juld[drift_B], "PARAM_name"=rep("DOWN_IRRADIANCE380", length(drift_B)))
+
+g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date)) +
+	geom_point() +
+	scale_color_viridis()
+	
+drift_AB = lm(PARAM ~ PARAM_Ts, data=drift_dataf) 
+
+full_dataf = rbind(PAR_dataf, drift_dataf)
+subset_PAR = which(full_dataf$PARAM_name==PARAM_NAMES[2] & !is.na(full_dataf$PARAM_Ts))
+full_AB = lm(PARAM ~ PARAM_Ts, data=full_dataf, subset=subset_PAR) 
 
 
+drift_fit = data.frame(
+	PARAM_name = rep("DOWN_IRRADIANCE380", 2),
+	x = Ts_range,
+	y = drift_AB$coefficients[1] + drift_AB$coefficients[2] * Ts_range
+)
+full_fit = data.frame(
+	PARAM_name = rep("DOWN_IRRADIANCE380", 2),
+	x = Ts_range,
+	y = full_AB$coefficients[1] + full_AB$coefficients[2] * Ts_range
+)
 
+g5 = g2 + geom_line(data=drift_fit, mapping=aes(x=x,y=y), color="black") +
+          geom_point(data=drift_dataf, color="black") +
+          geom_line(data=full_fit, mapping=aes(x=x,y=y), color="green")  
