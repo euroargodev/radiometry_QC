@@ -1,5 +1,6 @@
 library(ncdf4)
 library(stringr)
+library(stringi)
 library(parallel)
 library(ggplot2)
 library(viridis)
@@ -7,6 +8,7 @@ library(gridExtra)
 
 source("~/Documents/radiometry/possol.R")
 source("~/Documents/radiometry/sensor_temp.R")
+#source("~/Documents/cornec_chla_qc/chl_bbp_ttt/DM_writing/write_DM.R")
 
 #path_to_netcdf = "/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
 path_to_netcdf = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
@@ -104,8 +106,7 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 
 	fitted_Ts = sensor_temp(TEMP, PRES_C, PRES_B)
 
-	#return(list("a"=TEMP_QC, "b"=PARAM_QC, "c"=PRES_B_QC, "d"=PRES_C_QC))
-	return(list("PARAM"=PARAM, "Ts"=fitted_Ts, "PRES"=PRES_B))
+	return(list("PARAM"=PARAM, "Ts"=fitted_Ts, "PRES"=PRES_B, "id_prof"=id_prof_B, "n_levels"=n_levels_B))
 }
 
 PARAM_NAMES = c("DOWNWELLING_PAR", "DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", "DOWN_IRRADIANCE490")
@@ -172,7 +173,7 @@ all_match_380 = mcmapply(get_Ts_match, file_name=files_list, mc.cores=n_cores, S
 
 plot_corr_380 <- function(n) {
 
-	corr = all_match_380[[n]]$PARAM - ( A_axis[2] + B_axis[2] * all_match_380[[n]]$Ts ) #+ 1.5e-5
+	corr = all_match_380[[n]]$PARAM - ( A_axis[2] + B_axis[2] * all_match_380[[n]]$Ts )
 
 	dataf3 = data.frame(IRR380=all_match_380[[n]]$PARAM, PRES=all_match_380[[n]]$PRES, corr=corr, Ts=all_match_380[[n]]$Ts)
 
@@ -195,6 +196,58 @@ plot_corr_380 <- function(n) {
 	grid.arrange(g3_1, g3, g4, nrow=1)
 
 }
+
+####################################
+### Apply correction to netcdf
+####################################
+
+date_update = Sys.time()
+DATE = stri_datetime_format(date_update, format="uuuuMMddHHmmss", tz="UTC")
+
+corr_file <- function(file_name, path_to_netcdf) {
+
+	path_sep = unlist(strsplit(file_name, "/"))
+	file_name_out = paste(path_sep[1], path_sep[2], path_sep[3], "radiometry_xing", path_sep[4], sep="/")
+	full_file_name_out = paste(path_to_netcdf, file_name_out, sep="")
+	full_file_name_in = paste(path_to_netcdf, file_name, sep="")
+	
+	system2("cp", c(full_file_name_in, full_file_name_out))
+
+	for (param_name in PARAM_NAMES) {
+		
+		matchup = get_Ts_match(file_name=file_name, path_to_netcdf=path_to_netcdf, PARAM_NAME=param_name)
+
+		corr = matchup$PARAM - ( fitted_coeff[[param_name]][1] + fitted_coeff[[param_name]][2] * matchup$Ts )
+		
+		corr_error = 0.2*corr #TODO
+
+		corr_qc = rep("1", length(corr)) #TODO
+		corr_qc[which(is.na(corr))] = "4"
+		corr_qc = paste(corr_qc, collapse="")				
+
+		#outed = write_DM(file_out=full_file_name_out, param_name=param_name, DATE=DATE, scientific_comment="test",
+		#		scientific_coefficient="test", scientific_equation="test", comment_dmqc_operator_PRIMARY="test",
+		#		comment_dmqc_operator_PARAM="test", param_adjusted=corr, param_adjusted_qc=corr_qc,
+		#		param_adjusted_error=corr_error)
+		
+		fnc = nc_open(full_file_name_out, write=TRUE)
+		
+		ncvar_put(fnc, paste(param_name,"_ADJUSTED",sep=""), corr, start=c(1, matchup$id_prof), count=c(matchup$n_levels, 1))
+		
+		nc_close(fnc)
+	}
+	return(0)	
+		
+}
+
+#corr_file(files_list[1], path_to_netcdf)
+
+corr_all = mcmapply(corr_file, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
+							MoreArgs=list(path_to_netcdf=path_to_netcdf))
+
+####################################
+### Start of drift considerations
+####################################
 
 traj_name_B = paste(path_to_netcdf, dac[subset[1]], "/", WMO, "/", WMO, "_BRtraj.nc", sep="")
 traj_name_C = paste(path_to_netcdf, dac[subset[1]], "/", WMO, "/", WMO, "_Rtraj.nc", sep="")
@@ -234,7 +287,7 @@ for (i in 2:length(drift_C)) {
 #plot(temp[drift_C[drift_match]], irr380[drift_B])
 #points(Ts[drift_match], irr380[drift_B], pch='+', col="red")
 
-drift_dataf = data.frame("PARAM"=irr380[drift_B], "PARAM_Ts"=Ts[drift_match], "PARAM_date"=juld[drift_B], "PARAM_name"=rep("DOWN_IRRADIANCE380", length(drift_B)))
+drift_dataf = data.frame("PARAM"=irr380[drift_B], "PARAM_Ts"=Ts[drift_match], "PARAM_date"=juld_B[drift_B], "PARAM_name"=rep("DOWN_IRRADIANCE380", length(drift_B)))
 
 g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date)) +
 	geom_point() +
@@ -261,3 +314,9 @@ full_fit = data.frame(
 g5 = g2 + geom_line(data=drift_fit, mapping=aes(x=x,y=y), color="black") +
           geom_point(data=drift_dataf, color="black") +
           geom_line(data=full_fit, mapping=aes(x=x,y=y), color="green")  
+
+####################################
+#### End of drift considerations
+####################################
+
+
