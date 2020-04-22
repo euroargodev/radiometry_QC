@@ -40,4 +40,11 @@ solar_elev[valid] = unlist(M, use.names=F)
 
 is_night = (solar_elev < -5)
 
+floats = unique(wod[which(is_coriolis & is_radiometry)])
+num_prof = rep(NA, length(floats))
+num_night = rep(NA, length(floats))
 
+for (i in 1:length(floats)) {
+	num_prof[i] = length(which( (wod == floats[i]) & is_radiometry ))
+	num_night[i] = length(which( (wod == floats[i]) & is_radiometry & is_night ))
+}
