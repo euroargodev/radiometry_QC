@@ -26,16 +26,20 @@ lon = index_ifremer$longitude #retrieve the longitude of all profiles as a vecto
 prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 
 
-WMO = "6901524"
+WMO = "6901525"
 
-profile_list = substr(prof_id[which(substr(prof_id,3,9)==WMO)], 3, 14)
+profile_list = paste(path_to_netcdf, files[which(substr(prof_id,3,9)==WMO)], sep="")
 
-plot_QC <- function(profile_actual) {
+files_corr = files[which(substr(prof_id,3,9)==WMO & substr(prof_id,14,14)==".")]
+for (i in 1:length(files_corr)) {
+	path = unlist(strsplit(files_corr[i], "/"))
+	files_corr[i] = paste(path[1], path[2], path[3], "radiometry_xing", path[4], sep="/")
+}
+files_corr = paste(path_to_netcdf, files_corr, sep="")
 
-    iii = which(substr(prof_id,3,14)==profile_actual) #identify profile position in the index
-    
-    filename = paste(path_to_netcdf, files[iii], sep="")
-    
+
+plot_QC <- function(filename, with_corr=FALSE) {
+ 
     filenc = nc_open(filename)
     
     STATION_PARAMETERS = ncvar_get(filenc, "STATION_PARAMETERS")
@@ -46,132 +50,160 @@ plot_QC <- function(profile_actual) {
         nc_close(filenc)
         return(NULL)
     }
+
+	IRR380_NAME = c("DOWN_IRRADIANCE380", "DOWN_IRRADIANCE380_ADJUSTED")
+	IRR412_NAME = c("DOWN_IRRADIANCE412", "DOWN_IRRADIANCE412_ADJUSTED")
+	IRR490_NAME = c("DOWN_IRRADIANCE490", "DOWN_IRRADIANCE490_ADJUSTED")
+	PAR_NAME = c("DOWNWELLING_PAR", "DOWNWELLING_PAR_ADJUSTED")
     
-    PRES = ncvar_get(filenc, "PRES")[,id_prof]
-    IRR_380 = ncvar_get(filenc, "DOWN_IRRADIANCE380")[,id_prof]
-    IRR_412 = ncvar_get(filenc, "DOWN_IRRADIANCE412")[,id_prof]
-    IRR_490 = ncvar_get(filenc, "DOWN_IRRADIANCE490")[,id_prof]
-    PAR = ncvar_get(filenc, "DOWNWELLING_PAR")[,id_prof]
+	if (with_corr) {
+		max_i = 2
+	} else {
+		max_i = 1
+	}	
+
+	for (i in 1:max_i) {
+    
+		PRES = ncvar_get(filenc, "PRES")[,id_prof]
+    	IRR_380 = ncvar_get(filenc, IRR380_NAME[i])[,id_prof]
+    	IRR_412 = ncvar_get(filenc, IRR412_NAME[i])[,id_prof]
+    	IRR_490 = ncvar_get(filenc, IRR490_NAME[i])[,id_prof]
+    	PAR = ncvar_get(filenc, PAR_NAME[i])[,id_prof]
+    
+    	QC_flags = RT_QC_radiometry(PRES, IRR_380, IRR_412, IRR_490, PAR)
+    
+    	dataf = data.frame(QC_flags)
+    	dataf$PRES = PRES
+    	dataf$IRR_380 = IRR_380
+    	dataf$IRR_412 = IRR_412
+    	dataf$IRR_490 = IRR_490
+    	dataf$PAR = PAR
+    
+    	dataf$FLAG_380[which(dataf$FLAG_380 == "NA")] = NA
+    	dataf$FLAG_412[which(dataf$FLAG_412 == "NA")] = NA
+    	dataf$FLAG_490[which(dataf$FLAG_490 == "NA")] = NA
+    	dataf$FLAG_PAR[which(dataf$FLAG_PAR == "NA")] = NA
+    
+    	dataf$FLAG_380 = factor(dataf$FLAG_380 , levels=c("1", "2", "3", "4", NA))
+    	dataf$FLAG_412 = factor(dataf$FLAG_412 , levels=c("1", "2", "3", "4", NA))
+    	dataf$FLAG_490 = factor(dataf$FLAG_490 , levels=c("1", "2", "3", "4", NA))
+    	dataf$FLAG_PAR = factor(dataf$FLAG_PAR , levels=c("1", "2", "3", "4", NA))
+    
+    	col_1 = "#869C66"
+    	col_2 = "#FFCA0B"
+    	col_3 = "#FF9502"
+    	col_4 = "#D43501"
+    	
+    	type_col = c(col_1, col_2, col_3)
+    
+    	g1 = ggplot(dataf, aes(y=PRES, x=PAR, color=FLAG_PAR)) +
+    	    geom_point() +
+        	scale_y_reverse() +
+        	scale_x_log10() +
+        	scale_color_manual(values=c(col_1, col_2, col_3, col_4), breaks=c("1", "2", "3", "4"), drop=FALSE) +
+        	geom_label(
+            	label=paste("Profile type :", dataf$typePAR), 
+            	x=log10(max(dataf$PAR, na.rm=T)),
+            	y=-max(dataf$PRES, na.rm=T),
+            	vjust="bottom",
+            	hjust="right",
+            	label.padding = unit(0.55, "lines"), # Rectangle size around label
+            	#label.size = 0.35,
+            	color = "black",
+            	fill = type_col[as.numeric(as.character(dataf$typePAR[1]))]
+        	) +
+        	theme_bw() +
+        	theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
+    
+   		g2 = ggplot(dataf, aes(y=PRES, x=IRR_380, color=FLAG_380)) +
+	        geom_point() +
+	        scale_y_reverse() +
+	        scale_x_log10() +
+	        scale_color_manual(values=c(col_1, col_2, col_3, col_4), breaks=c("1", "2", "3", "4"), drop=FALSE) +
+	        geom_label(
+	            label=paste("Profile type :", dataf$type380), 
+	            x=log10(max(dataf$IRR_380, na.rm=T)),
+	            y=-max(dataf$PRES, na.rm=T),
+	            vjust="bottom",
+	            hjust="right",
+	            label.padding = unit(0.55, "lines"), # Rectangle size around label
+	            #label.size = 0.35,
+	            color = "black",
+	            fill=type_col[as.numeric(as.character(dataf$type380[1]))]
+	        ) +
+	        theme_bw() +
+	        theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
+	    
+	    g3 = ggplot(dataf, aes(y=PRES, x=IRR_412, color=FLAG_412)) +
+	        geom_point() +
+	        scale_y_reverse() +
+	        scale_x_log10() +
+	        scale_color_manual(values=c(col_1, col_2, col_3, col_4), breaks=c("1", "2", "3", "4"), drop=FALSE) +
+	        geom_label(
+	            label=paste("Profile type :", dataf$type412), 
+	            x=log10(max(dataf$IRR_412, na.rm=T)),
+	            y=-max(dataf$PRES, na.rm=T),
+	            vjust="bottom",
+	            hjust="right",
+	            label.padding = unit(0.55, "lines"), # Rectangle size around label
+	            #label.size = 0.35,
+	            color = "black",
+	            fill=type_col[as.numeric(as.character(dataf$type412[1]))]
+	        ) +
+	        theme_bw() +
+	        theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
+	    
+	    g4 = ggplot(dataf, aes(y=PRES, x=IRR_490, color=FLAG_490)) +
+	        geom_point() +
+	        scale_y_reverse() +
+	        scale_x_log10() +
+	        scale_color_manual(values=c(col_1, col_2, col_3, col_4), breaks=c("1", "2", "3", "4"), drop=FALSE) +
+	        geom_label(
+	   	        label=paste("Profile type :", dataf$type490), 
+	            x=log10(max(dataf$IRR_490, na.rm=T)),
+	            y=-max(dataf$PRES, na.rm=T),
+	            vjust="bottom",
+	            hjust="right",
+	            label.padding = unit(0.55, "lines"), # Rectangle size around label
+	            #label.size = 0.35,
+	            color = "black",
+	            fill=type_col[as.numeric(as.character(dataf$type490[1]))]
+	        ) +
+	        theme_bw() +
+	        theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
+    	
+		if (i == 1) {
+			gg5 = grid.arrange(g1, g2, g3, g4, nrow=1)
+		} else {
+			gg5_adjusted = grid.arrange(g1, g2, g3, g4, nrow=1)
+		}
+		
+	}
+    
+
+    if (str_sub(filename,-4,-4) == "D") {
+        plot_name = paste("radiomerty_QC_", str_sub(filename, -15, -4), ".png", sep="")
+    } else {
+        plot_name = paste("radiomerty_QC_", str_sub(filename, -14, -4), ".png", sep="")
+    }
+
+	if (with_corr){
+    	png(plot_name, width = 800, height = 800)
+    	grid.arrange(gg5, gg5_adjusted, nrow=2)
+	} else {
+    	png(plot_name, width = 800, height = 400)
+		grid.arrange(gg5)
+	}
+    dev.off()
     
     nc_close(filenc)
     
-    QC_flags = RT_QC_radiometry(PRES, IRR_380, IRR_412, IRR_490, PAR)
-    
-    dataf = data.frame(QC_flags)
-    dataf$PRES = PRES
-    dataf$IRR_380 = IRR_380
-    dataf$IRR_412 = IRR_412
-    dataf$IRR_490 = IRR_490
-    dataf$PAR = PAR
-    
-    dataf$FLAG_380[which(dataf$FLAG_380 == "NA")] = NA
-    dataf$FLAG_412[which(dataf$FLAG_412 == "NA")] = NA
-    dataf$FLAG_490[which(dataf$FLAG_490 == "NA")] = NA
-    dataf$FLAG_PAR[which(dataf$FLAG_PAR == "NA")] = NA
-    
-    dataf$FLAG_380 = factor(dataf$FLAG_380 , levels=c("1", "2", "3", "4", NA))
-    dataf$FLAG_412 = factor(dataf$FLAG_412 , levels=c("1", "2", "3", "4", NA))
-    dataf$FLAG_490 = factor(dataf$FLAG_490 , levels=c("1", "2", "3", "4", NA))
-    dataf$FLAG_PAR = factor(dataf$FLAG_PAR , levels=c("1", "2", "3", "4", NA))
-    
-    col_1 = "#869C66"
-    col_2 = "#FFCA0B"
-    col_3 = "#FF9502"
-    col_4 = "#D43501"
-    
-    type_col = c(col_1, col_2, col_3)
-    
-    g1 = ggplot(dataf, aes(y=PRES, x=PAR, color=FLAG_PAR)) +
-        geom_point() +
-        scale_y_reverse() +
-        scale_x_log10() +
-        scale_color_manual(values=c(col_1, col_2, col_3, col_4), breaks=c("1", "2", "3", "4"), drop=FALSE) +
-        geom_label(
-            label=paste("Profile type :", dataf$typePAR), 
-            x=log10(max(dataf$PAR, na.rm=T)),
-            y=-max(dataf$PRES, na.rm=T),
-            vjust="bottom",
-            hjust="right",
-            label.padding = unit(0.55, "lines"), # Rectangle size around label
-            #label.size = 0.35,
-            color = "black",
-            fill = type_col[as.numeric(as.character(dataf$typePAR[1]))]
-        ) +
-        theme_bw() +
-        theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
-    
-    g2 = ggplot(dataf, aes(y=PRES, x=IRR_380, color=FLAG_380)) +
-        geom_point() +
-        scale_y_reverse() +
-        scale_x_log10() +
-        scale_color_manual(values=c(col_1, col_2, col_3, col_4), breaks=c("1", "2", "3", "4"), drop=FALSE) +
-        geom_label(
-            label=paste("Profile type :", dataf$type380), 
-            x=log10(max(dataf$IRR_380, na.rm=T)),
-            y=-max(dataf$PRES, na.rm=T),
-            vjust="bottom",
-            hjust="right",
-            label.padding = unit(0.55, "lines"), # Rectangle size around label
-            #label.size = 0.35,
-            color = "black",
-            fill=type_col[as.numeric(as.character(dataf$type380[1]))]
-        ) +
-        theme_bw() +
-        theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
-    
-    g3 = ggplot(dataf, aes(y=PRES, x=IRR_412, color=FLAG_412)) +
-        geom_point() +
-        scale_y_reverse() +
-        scale_x_log10() +
-        scale_color_manual(values=c(col_1, col_2, col_3, col_4), breaks=c("1", "2", "3", "4"), drop=FALSE) +
-        geom_label(
-            label=paste("Profile type :", dataf$type412), 
-            x=log10(max(dataf$IRR_412, na.rm=T)),
-            y=-max(dataf$PRES, na.rm=T),
-            vjust="bottom",
-            hjust="right",
-            label.padding = unit(0.55, "lines"), # Rectangle size around label
-            #label.size = 0.35,
-            color = "black",
-            fill=type_col[as.numeric(as.character(dataf$type412[1]))]
-        ) +
-        theme_bw() +
-        theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
-    
-    g4 = ggplot(dataf, aes(y=PRES, x=IRR_490, color=FLAG_490)) +
-        geom_point() +
-        scale_y_reverse() +
-        scale_x_log10() +
-        scale_color_manual(values=c(col_1, col_2, col_3, col_4), breaks=c("1", "2", "3", "4"), drop=FALSE) +
-        geom_label(
-            label=paste("Profile type :", dataf$type490), 
-            x=log10(max(dataf$IRR_490, na.rm=T)),
-            y=-max(dataf$PRES, na.rm=T),
-            vjust="bottom",
-            hjust="right",
-            label.padding = unit(0.55, "lines"), # Rectangle size around label
-            #label.size = 0.35,
-            color = "black",
-            fill=type_col[as.numeric(as.character(dataf$type490[1]))]
-        ) +
-        theme_bw() +
-        theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
-    
-    if (str_sub(profile_actual,-1) == ".") {
-        plot_name = paste("radiomerty_QC_", profile_actual, "png", sep="")
-    } else {
-        plot_name = paste("radiomerty_QC_", profile_actual, ".png", sep="")
-    }
-    
-    png(plot_name, width = 800, height = 400)
-    grid.arrange(g1, g2, g3, g4, nrow=1)
-    dev.off()
-    
-    return(list("type380"=QC_flags$type380, "type412"=QC_flags$type412, "type490"=QC_flags$type490, "typePAR"=QC_flags$typePAR))
+	return(list("type380"=QC_flags$type380, "type412"=QC_flags$type412, "type490"=QC_flags$type490, "typePAR"=QC_flags$typePAR))
 
 }
 
-num_cores = detectCores()
-M = mcmapply(plot_QC, profile_list[260:270], mc.cores=num_cores, SIMPLIFY=FALSE)
 
-write_json(M, path="profile_types.json", auto_unbox=T, pretty=T, null="list")
+num_cores = detectCores()
+M = mcmapply(plot_QC, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=TRUE))
+
+#write_json(M, path="profile_types.json", auto_unbox=T, pretty=T, null="list")
