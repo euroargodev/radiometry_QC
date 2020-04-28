@@ -5,6 +5,7 @@ library(parallel)
 library(ggplot2)
 library(viridis)
 library(gridExtra)
+library(gtools)
 
 source("~/Documents/radiometry/possol.R")
 source("~/Documents/radiometry/sensor_temp.R")
@@ -57,6 +58,8 @@ night = which(solar_elev < -5)
 profile_night = profile_list[night]
 files_night = files_list[night]
 date_night = as.Date(as.character(prof_date_list[night]), format="%Y%m%d%H%M%S", tz="UTC")
+date_list = as.Date(as.character(prof_date_list), format="%Y%m%d%H%M%S", tz="UTC")
+
 
 get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 	
@@ -117,6 +120,10 @@ PAR = NULL
 PAR_Ts = NULL
 PAR_date = NULL
 PAR_name = NULL
+DAY = NULL
+DAY_Ts = NULL
+DAY_date = NULL
+DAY_name = NULL
 
 for (param_name in PARAM_NAMES) {
 	for (i in 1:length(files_night)) {
@@ -134,17 +141,36 @@ for (param_name in PARAM_NAMES) {
 		PAR_name = c(PAR_name, PAR_name_new)
 	}
 	#PAR_date = as.Date(PAR_date, origin="1970-01-01")
+	for (i in 1:length(files_list)) {
+		match = get_Ts_match(path_to_netcdf, files_list[i], param_name)
+
+		DAY = c(DAY, match$PARAM)
+		DAY_Ts = c(DAY_Ts, match$Ts)
+
+		DAY_date_new = rep(date_list[i], length(match$PARAM))
+		DAY_date_new[which(is.na(match$PARAM))] = NA
+		DAY_date = c(DAY_date, DAY_date_new)
+		
+		DAY_name_new = rep(param_name, length(match$PARAM))
+		DAY_name_new[which(is.na(match$PARAM))] = NA
+		DAY_name = c(DAY_name, DAY_name_new)
+	}
 }
 PAR_dataf = data.frame("PARAM"=PAR, "PARAM_Ts"=PAR_Ts, "PARAM_date"=PAR_date, "PARAM_name"=PAR_name)
+DAY_dataf = data.frame("PARAM"=DAY, "PARAM_Ts"=DAY_Ts, "PARAM_date"=DAY_date, "PARAM_name"=DAY_name)
 
 g1 = ggplot(na.omit(PAR_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
 	geom_point() +
 	scale_color_viridis() +
+	#scale_y_continuous(limits=c(-5e-5, 2e-4)) +
 	facet_wrap(~PARAM_name, scale="free_y")
 
 fitted_coeff = NULL
 A_axis = rep(NA, 4)
 B_axis = rep(NA, 4)
+fitted_coeff_day = NULL
+A_axis_day = rep(NA, 4)
+B_axis_day = rep(NA, 4)
 for (i in 1:length(PARAM_NAMES)) {
 	subset_PAR = which(PAR_dataf$PARAM_name==PARAM_NAMES[i] & !is.na(PAR_dataf$PARAM_Ts))
 
@@ -153,6 +179,23 @@ for (i in 1:length(PARAM_NAMES)) {
 	fitted_coeff[[PARAM_NAMES[i]]] = fit_AB$coefficients
 	A_axis[i] = fit_AB$coefficients[[1]]
 	B_axis[i] = fit_AB$coefficients[[2]]
+
+	
+	fit_param = DAY_dataf$PARAM[which(DAY_dataf$PARAM_name == PARAM_NAMES[i])]
+	fit_Ts = DAY_dataf$PARAM_Ts[which(DAY_dataf$PARAM_name == PARAM_NAMES[i])]
+	
+	fit_param = fit_param[order(fit_Ts)]
+	fit_Ts = fit_Ts[order(fit_Ts)]
+	
+	run_min = running(fit_param, fun=min, width=51, pad=TRUE)
+	
+	data_run = data.frame("run_min"=run_min, "fit_Ts"=fit_Ts)
+	fit_AB_day = lm(run_min ~ fit_Ts, data=data_run)
+
+	fitted_coeff_day[[PARAM_NAMES[i]]] = fit_AB_day$coefficients
+	A_axis_day[i] = fit_AB_day$coefficients[[1]]
+	B_axis_day[i] = fit_AB_day$coefficients[[2]]
+	
 }
 
 Ts_range = range(PAR_dataf$PARAM_Ts, na.rm=T)
@@ -162,8 +205,14 @@ data_fit = data.frame(
 	x = rep(Ts_range, 4),
 	y = rep(A_axis, each=2) + rep(B_axis, each=2) * rep(Ts_range, 4)
 )
+data_fit_day = data.frame(
+	PARAM_name = rep(PARAM_NAMES, each=2),
+	x = rep(Ts_range, 4),
+	y = rep(A_axis_day, each=2) + rep(B_axis_day, each=2) * rep(Ts_range, 4)
+)
 
 g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
+g2_1 = g2 + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="green")
 
 
 
@@ -242,8 +291,8 @@ corr_file <- function(file_name, path_to_netcdf) {
 
 #corr_file(files_list[1], path_to_netcdf)
 
-corr_all = mcmapply(corr_file, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
-							MoreArgs=list(path_to_netcdf=path_to_netcdf))
+#corr_all = mcmapply(corr_file, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
+#							MoreArgs=list(path_to_netcdf=path_to_netcdf))
 
 ####################################
 ### Start of drift considerations
