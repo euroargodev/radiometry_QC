@@ -38,7 +38,8 @@ profile_list = paste(path_to_netcdf, files[which(substr(prof_id,3,9)==WMO)], sep
 files_corr = files[which(substr(prof_id,3,9)==WMO & substr(prof_id,14,14)==".")]
 for (i in 1:length(files_corr)) {
 	path = unlist(strsplit(files_corr[i], "/"))
-	files_corr[i] = paste(path[1], path[2], path[3], "radiometry_xing", path[4], sep="/")
+	#files_corr[i] = paste(path[1], path[2], path[3], "radiometry_xing", path[4], sep="/")
+	files_corr[i] = paste(path[1], path[2], path[3], "radiometry_xing_day", path[4], sep="/")
 }
 files_corr = paste(path_to_netcdf, files_corr, sep="")
 
@@ -226,7 +227,7 @@ A = t(array(unlist(M, use.names=FALSE), dim=c(4,length(M))))
 Acorr = t(array(unlist(Mcorr, use.names=FALSE), dim=c(4,length(M))))
 
 param_name = c("IRR380", "IRR412", "IRR490", "PAR")
-sankey_names = paste0("sankey_", WMO, "_", param_name, ".html")
+sankey_names = paste0("sankey_day_", WMO, "_", param_name, ".html")
 
 for (n in 1:4) {
 	type = A[,n]

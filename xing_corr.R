@@ -162,7 +162,7 @@ DAY_dataf = data.frame("PARAM"=DAY, "PARAM_Ts"=DAY_Ts, "PARAM_date"=DAY_date, "P
 g1 = ggplot(na.omit(PAR_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
 	geom_point() +
 	scale_color_viridis() +
-	#scale_y_continuous(limits=c(-5e-5, 2e-4)) +
+	scale_y_continuous(limits=c(-1e-4, -2e-5)) +
 	facet_wrap(~PARAM_name, scale="free_y")
 
 fitted_coeff = NULL
@@ -253,10 +253,14 @@ plot_corr_380 <- function(n) {
 date_update = Sys.time()
 DATE = stri_datetime_format(date_update, format="uuuuMMddHHmmss", tz="UTC")
 
-corr_file <- function(file_name, path_to_netcdf) {
+corr_file <- function(file_name, path_to_netcdf, use_day=FALSE) {
 
 	path_sep = unlist(strsplit(file_name, "/"))
-	file_name_out = paste(path_sep[1], path_sep[2], path_sep[3], "radiometry_xing", path_sep[4], sep="/")
+	if (use_day) {
+		file_name_out = paste(path_sep[1], path_sep[2], path_sep[3], "radiometry_xing_day", path_sep[4], sep="/")
+	} else {
+		file_name_out = paste(path_sep[1], path_sep[2], path_sep[3], "radiometry_xing", path_sep[4], sep="/")
+	}
 	full_file_name_out = paste(path_to_netcdf, file_name_out, sep="")
 	full_file_name_in = paste(path_to_netcdf, file_name, sep="")
 	
@@ -265,8 +269,12 @@ corr_file <- function(file_name, path_to_netcdf) {
 	for (param_name in PARAM_NAMES) {
 		
 		matchup = get_Ts_match(file_name=file_name, path_to_netcdf=path_to_netcdf, PARAM_NAME=param_name)
-
-		corr = matchup$PARAM - ( fitted_coeff[[param_name]][1] + fitted_coeff[[param_name]][2] * matchup$Ts )
+		
+		if (use_day) {
+			corr = matchup$PARAM - ( fitted_coeff_day[[param_name]][1] + fitted_coeff_day[[param_name]][2] * matchup$Ts )
+		} else {
+			corr = matchup$PARAM - ( fitted_coeff[[param_name]][1] + fitted_coeff[[param_name]][2] * matchup$Ts )
+		}
 		
 		corr_error = 0.2*corr #TODO
 
@@ -274,11 +282,6 @@ corr_file <- function(file_name, path_to_netcdf) {
 		corr_qc[which(is.na(corr))] = "4"
 		corr_qc = paste(corr_qc, collapse="")				
 
-		#outed = write_DM(file_out=full_file_name_out, param_name=param_name, DATE=DATE, scientific_comment="test",
-		#		scientific_coefficient="test", scientific_equation="test", comment_dmqc_operator_PRIMARY="test",
-		#		comment_dmqc_operator_PARAM="test", param_adjusted=corr, param_adjusted_qc=corr_qc,
-		#		param_adjusted_error=corr_error)
-		
 		fnc = nc_open(full_file_name_out, write=TRUE)
 		
 		ncvar_put(fnc, paste(param_name,"_ADJUSTED",sep=""), corr, start=c(1, matchup$id_prof), count=c(matchup$n_levels, 1))
@@ -291,8 +294,8 @@ corr_file <- function(file_name, path_to_netcdf) {
 
 #corr_file(files_list[1], path_to_netcdf)
 
-#corr_all = mcmapply(corr_file, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
-#							MoreArgs=list(path_to_netcdf=path_to_netcdf))
+corr_all = mcmapply(corr_file, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
+							MoreArgs=list(path_to_netcdf=path_to_netcdf, use_day=TRUE))
 
 ####################################
 ### Start of drift considerations
