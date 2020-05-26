@@ -59,11 +59,11 @@ day = which(solar_elev >= -5)
 
 profile_night = profile_list[night]
 files_night = files_list[night]
-date_night = as.Date(as.character(prof_date_list[night]), format="%Y%m%d%H%M%S", tz="UTC")
+date_night = as.Date(as.character(prof_date_list[night]), format="%Y%m%d%H%M%S", origin="1950-01-01", tz="UTC")
 
 profile_day = profile_list[day]
 files_day = files_list[day]
-date_day = as.Date(as.character(prof_date_list[day]), format="%Y%m%d%H%M%S", tz="UTC")
+date_day = as.Date(as.character(prof_date_list[day]), format="%Y%m%d%H%M%S", origin="1950-01-01", tz="UTC")
 
 
 get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
@@ -328,8 +328,6 @@ corr_file <- function(file_name, path_to_netcdf, use_day=FALSE) {
 ####################################
 ### Start of drift considerations
 ####################################
-consider_drift = FALSE
-if (consider_drift) {
 
 traj_name_B = paste(path_to_netcdf, dac[subset[1]], "/", WMO, "/", WMO, "_BRtraj.nc", sep="")
 traj_name_C = paste(path_to_netcdf, dac[subset[1]], "/", WMO, "/", WMO, "_Rtraj.nc", sep="")
@@ -337,67 +335,83 @@ traj_name_C = paste(path_to_netcdf, dac[subset[1]], "/", WMO, "/", WMO, "_Rtraj.
 fnc_B = nc_open(traj_name_B)
 fnc_C = nc_open(traj_name_C)
 
-irr380 = ncvar_get(fnc_B, "DOWN_IRRADIANCE380")
 temp = ncvar_get(fnc_C, "TEMP")
 juld_B = ncvar_get(fnc_B, "JULD")
 juld_C = ncvar_get(fnc_C, "JULD")
 code = ncvar_get(fnc_B, "MEASUREMENT_CODE")
 
+drift_C = which(!is.na(temp) & code==290) #290 may not be the only correct code
+
+
+PAR = NULL
+PAR_Ts = NULL
+PAR_date = NULL
+PAR_name = NULL
+for (param_name in PARAM_NAMES) {
+	irr = ncvar_get(fnc_B, param_name)
+
+	drift_B = which(!is.na(irr) & code==290) #290 may not be the only correct code
+
+	drift_match = rep(NA, length(drift_B))
+	for (i in 1:length(drift_B)) {
+		match_dist = abs(juld_B[drift_B[i]] - juld_C[drift_C])
+		drift_match[i] = min(which( match_dist == min(match_dist) ))
+	}
+
+	#k = 0.19/60 # s^-1
+	#delta_t = 54 # s
+	#lag = (delta_t + 1/k) / (3600*24) # d # lag for Ts when trailing a linear Tw
+
+	#Ts = rep(NA, length(drift_C))
+	#Ts[1] = temp[drift_C[1]]
+	#for (i in 2:length(drift_C)) {
+	#	Ts[i] = temp[drift_C[i]] - lag * (temp[drift_C[i]] - temp[drift_C[i-1]]) / (juld_C[drift_C[i]] - juld_C[drift_C[i-1]])
+	#} # we assume a long time between drift measurement and linear rate of change between them
+	
+	PAR = c(PAR, irr[drift_B])	
+	PAR_Ts = c(PAR_Ts, temp[drift_C[drift_match]])
+	PAR_date = c(PAR_date, juld_B[drift_B])
+	PAR_name = c(PAR_name, rep(param_name, length(drift_B)))	
+}
 nc_close(fnc_B)
 nc_close(fnc_C)
 
-drift_B = which(!is.na(irr380) & code==290) #290 may not be the only correct code
-drift_C = which(!is.na(temp) & code==290) #290 may not be the only correct code
+drift_dataf = data.frame("PARAM"=PAR, "PARAM_Ts"=PAR_Ts, "PARAM_date"=PAR_date, "PARAM_name"=PAR_name)
 
-drift_match = rep(NA, length(drift_B))
-for (i in 1:length(drift_B)) {
-	match_dist = abs(juld_B[drift_B[i]] - juld_C[drift_C])
-	drift_match[i] = min(which( match_dist == min(match_dist) ))
+A_axis_drift = rep(NA, 4)
+B_axis_drift = rep(NA, 4)
+C_axis_drift = rep(NA, 4)
+drift_dataf_5C = drift_dataf
+for (i in 1:4) {
+	subset_PAR = which(drift_dataf$PARAM_name == PARAM_NAMES[i])
+	fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=drift_dataf, subset=subset_PAR)
+	A_axis_drift[i] = fit_ABC$coefficients[1]	
+	B_axis_drift[i] = fit_ABC$coefficients[2]	
+	C_axis_drift[i] = fit_ABC$coefficients[3]	
+
+	drift_dataf_5C$PARAM[subset_PAR] = drift_dataf_5C$PARAM[subset_PAR] - B_axis_drift[i] * (drift_dataf_5C$PARAM_Ts[subset_PAR] - 5)
 }
 
-k = 0.19/60 # s^-1
-delta_t = 54 # s
-lag = (delta_t + 1/k) / (3600*24) # d # lag for Ts when trailing a linear Tw
+range_time = range(drift_dataf$PARAM_date)
+data_fit_drift = data.frame(
+	PARAM_name = rep(PARAM_NAMES, each=2),
+	x = rep(range_time, 4),
+	y = rep(A_axis_drift, each=2) + rep(C_axis_drift, each=2) * rep(range_time, 4) + rep(B_axis_drift, each=2) * 5
+)
 
-Ts = rep(NA, length(drift_C))
-Ts[1] = temp[drift_C[1]]
-for (i in 2:length(drift_C)) {
-	Ts[i] = temp[drift_C[i]] - lag * (temp[drift_C[i]] - temp[drift_C[i-1]]) / (juld_C[drift_C[i]] - juld_C[drift_C[i-1]])
-} # we assume a long time between drift measurement and linear rate of change between them
-
-
-#plot(temp[drift_C[drift_match]], irr380[drift_B])
-#points(Ts[drift_match], irr380[drift_B], pch='+', col="red")
-
-drift_dataf = data.frame("PARAM"=irr380[drift_B], "PARAM_Ts"=Ts[drift_match], "PARAM_date"=juld_B[drift_B], "PARAM_name"=rep("DOWN_IRRADIANCE380", length(drift_B)))
-
-g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date)) +
+g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
 	geom_point() +
-	scale_color_viridis()
+	scale_color_viridis() +
+	facet_wrap(~PARAM_name, scale="free_y")
+g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+	geom_point() +
+	scale_color_viridis() +
+	facet_wrap(~PARAM_name, scale="free_y")
 	
-drift_AB = lm(PARAM ~ PARAM_Ts, data=drift_dataf) 
-
-full_dataf = rbind(PAR_dataf, drift_dataf)
-subset_PAR = which(full_dataf$PARAM_name==PARAM_NAMES[2] & !is.na(full_dataf$PARAM_Ts))
-full_AB = lm(PARAM ~ PARAM_Ts, data=full_dataf, subset=subset_PAR) 
+g4_fit = g4 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
+g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
 
 
-drift_fit = data.frame(
-	PARAM_name = rep("DOWN_IRRADIANCE380", 2),
-	x = Ts_range,
-	y = drift_AB$coefficients[1] + drift_AB$coefficients[2] * Ts_range
-)
-full_fit = data.frame(
-	PARAM_name = rep("DOWN_IRRADIANCE380", 2),
-	x = Ts_range,
-	y = full_AB$coefficients[1] + full_AB$coefficients[2] * Ts_range
-)
-
-g5 = g2 + geom_line(data=drift_fit, mapping=aes(x=x,y=y), color="black") +
-          geom_point(data=drift_dataf, color="black") +
-          geom_line(data=full_fit, mapping=aes(x=x,y=y), color="green")  
-
-}
 ####################################
 #### End of drift considerations
 ####################################
