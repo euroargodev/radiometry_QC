@@ -6,6 +6,7 @@ library(ggplot2)
 library(viridis)
 library(gridExtra)
 library(gtools)
+library(nortest)
 
 source("~/Documents/radiometry/possol.R")
 source("~/Documents/radiometry/sensor_temp.R")
@@ -54,11 +55,15 @@ M = mapply(possol.vec, month=month_list, jday=day_list, tu=tu_list, xlon=lon_lis
 solar_elev = unlist(M, use.names=F)
 
 night = which(solar_elev < -5)
+day = which(solar_elev >= -5)
 
 profile_night = profile_list[night]
 files_night = files_list[night]
 date_night = as.Date(as.character(prof_date_list[night]), format="%Y%m%d%H%M%S", tz="UTC")
-date_list = as.Date(as.character(prof_date_list), format="%Y%m%d%H%M%S", tz="UTC")
+
+profile_day = profile_list[day]
+files_day = files_list[day]
+date_day = as.Date(as.character(prof_date_list[day]), format="%Y%m%d%H%M%S", tz="UTC")
 
 
 get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
@@ -141,19 +146,35 @@ for (param_name in PARAM_NAMES) {
 		PAR_name = c(PAR_name, PAR_name_new)
 	}
 	#PAR_date = as.Date(PAR_date, origin="1970-01-01")
-	for (i in 1:length(files_list)) {
-		match = get_Ts_match(path_to_netcdf, files_list[i], param_name)
-
-		DAY = c(DAY, match$PARAM)
-		DAY_Ts = c(DAY_Ts, match$Ts)
-
-		DAY_date_new = rep(date_list[i], length(match$PARAM))
-		DAY_date_new[which(is.na(match$PARAM))] = NA
-		DAY_date = c(DAY_date, DAY_date_new)
+	for (i in 1:length(files_day)) {
+		match = get_Ts_match(path_to_netcdf, files_day[i], param_name)
 		
-		DAY_name_new = rep(param_name, length(match$PARAM))
-		DAY_name_new[which(is.na(match$PARAM))] = NA
-		DAY_name = c(DAY_name, DAY_name_new)
+		match_not_na = which(!is.na(match$PARAM))
+		if (length(match_not_na) > 4) {
+			
+			### select dark from lillifors test following Organelli et al
+			match_param = match$PARAM[match_not_na]
+			lillie_pval = rep(NA, length(match_param))
+			for (j in 1:(length(match_param)-4)) {
+				lillie_pval[j] = lillie.test(match_param[j:length(match_param)])$p.value
+			}
+			signif = (abs(lillie_pval) > 0.01)
+			if (any(signif, na.rm=T)) {
+				j_dark = which(signif)[1] - 1
+				subsel_dark = match_not_na[j_dark:length(match_not_na)]
+
+				DAY = c(DAY, match$PARAM[subsel_dark])
+				DAY_Ts = c(DAY_Ts, match$Ts[subsel_dark])
+	
+				DAY_date_new = rep(date_day[i], length(subsel_dark))
+				#DAY_date_new[which(is.na(match$PARAM))] = NA
+				DAY_date = c(DAY_date, DAY_date_new)
+			
+				DAY_name_new = rep(param_name, length(subsel_dark))
+				#DAY_name_new[which(is.na(match$PARAM))] = NA
+				DAY_name = c(DAY_name, DAY_name_new)
+			}
+		}
 	}
 }
 PAR_dataf = data.frame("PARAM"=PAR, "PARAM_Ts"=PAR_Ts, "PARAM_date"=PAR_date, "PARAM_name"=PAR_name)
@@ -162,7 +183,12 @@ DAY_dataf = data.frame("PARAM"=DAY, "PARAM_Ts"=DAY_Ts, "PARAM_date"=DAY_date, "P
 g1 = ggplot(na.omit(PAR_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
 	geom_point() +
 	scale_color_viridis() +
-	scale_y_continuous(limits=c(-1e-4, -2e-5)) +
+	#scale_y_continuous(limits=c(-1e-4, -2e-5)) +
+	facet_wrap(~PARAM_name, scale="free_y")
+g1_day = ggplot(na.omit(DAY_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
+	geom_point() +
+	scale_color_viridis() +
+	#scale_y_continuous(limits=c(-1e-4, -2e-5)) +
 	facet_wrap(~PARAM_name, scale="free_y")
 
 fitted_coeff = NULL
@@ -214,6 +240,8 @@ data_fit_day = data.frame(
 g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
 g2_1 = g2 + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="green")
 
+g2_day = g1_day + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
+g2_1_day = g2_day + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="green")
 
 
 n_cores = detectCores()
@@ -294,12 +322,14 @@ corr_file <- function(file_name, path_to_netcdf, use_day=FALSE) {
 
 #corr_file(files_list[1], path_to_netcdf)
 
-corr_all = mcmapply(corr_file, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
-							MoreArgs=list(path_to_netcdf=path_to_netcdf, use_day=TRUE))
+#corr_all = mcmapply(corr_file, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
+#							MoreArgs=list(path_to_netcdf=path_to_netcdf, use_day=TRUE))
 
 ####################################
 ### Start of drift considerations
 ####################################
+consider_drift = FALSE
+if (consider_drift) {
 
 traj_name_B = paste(path_to_netcdf, dac[subset[1]], "/", WMO, "/", WMO, "_BRtraj.nc", sep="")
 traj_name_C = paste(path_to_netcdf, dac[subset[1]], "/", WMO, "/", WMO, "_Rtraj.nc", sep="")
@@ -367,6 +397,7 @@ g5 = g2 + geom_line(data=drift_fit, mapping=aes(x=x,y=y), color="black") +
           geom_point(data=drift_dataf, color="black") +
           geom_line(data=full_fit, mapping=aes(x=x,y=y), color="green")  
 
+}
 ####################################
 #### End of drift considerations
 ####################################
