@@ -59,11 +59,13 @@ day = which(solar_elev >= -5)
 
 profile_night = profile_list[night]
 files_night = files_list[night]
-date_night = as.Date(as.character(prof_date_list[night]), format="%Y%m%d%H%M%S", origin="1950-01-01", tz="UTC")
+date_night = as.Date(as.character(prof_date_list[night]), format="%Y%m%d%H%M%S", tz="UTC")
+date_night = julian(date_night, origin=as.Date("1950-01-01", tz="UTC"))
 
 profile_day = profile_list[day]
 files_day = files_list[day]
-date_day = as.Date(as.character(prof_date_list[day]), format="%Y%m%d%H%M%S", origin="1950-01-01", tz="UTC")
+date_day = as.Date(as.character(prof_date_list[day]), format="%Y%m%d%H%M%S", tz="UTC")
+date_day = julian(date_day, origin=as.Date("1950-01-01", tz="UTC"))
 
 
 get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
@@ -119,7 +121,89 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 
 PARAM_NAMES = c("DOWNWELLING_PAR", "DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", "DOWN_IRRADIANCE490")
 
-all_PARAM_match = NULL
+####################################
+### Start of drift considerations
+####################################
+
+traj_name_B = paste(path_to_netcdf, dac[subset[1]], "/", WMO, "/", WMO, "_BRtraj.nc", sep="")
+traj_name_C = paste(path_to_netcdf, dac[subset[1]], "/", WMO, "/", WMO, "_Rtraj.nc", sep="")
+
+fnc_B = nc_open(traj_name_B)
+fnc_C = nc_open(traj_name_C)
+
+temp = ncvar_get(fnc_C, "TEMP")
+juld_B = ncvar_get(fnc_B, "JULD")
+juld_C = ncvar_get(fnc_C, "JULD")
+code = ncvar_get(fnc_B, "MEASUREMENT_CODE")
+
+drift_C = which(!is.na(temp) & code==290) #290 may not be the only correct code
+
+
+PAR = NULL
+PAR_Ts = NULL
+PAR_date = NULL
+PAR_name = NULL
+for (param_name in PARAM_NAMES) {
+	irr = ncvar_get(fnc_B, param_name)
+
+	drift_B = which(!is.na(irr) & code==290) #290 may not be the only correct code
+
+	drift_match = rep(NA, length(drift_B))
+	for (i in 1:length(drift_B)) {
+		match_dist = abs(juld_B[drift_B[i]] - juld_C[drift_C])
+		drift_match[i] = min(which( match_dist == min(match_dist) ))
+	}
+
+	PAR = c(PAR, irr[drift_B])	
+	PAR_Ts = c(PAR_Ts, temp[drift_C[drift_match]])
+	PAR_date = c(PAR_date, juld_B[drift_B])
+	PAR_name = c(PAR_name, rep(param_name, length(drift_B)))	
+}
+nc_close(fnc_B)
+nc_close(fnc_C)
+
+drift_dataf = data.frame("PARAM"=PAR, "PARAM_Ts"=PAR_Ts, "PARAM_date"=PAR_date, "PARAM_name"=PAR_name)
+
+A_axis_drift = rep(NA, 4)
+B_axis_drift = rep(NA, 4)
+C_axis_drift = rep(NA, 4)
+drift_dataf_5C = drift_dataf
+fitted_coeff_drift = NULL
+for (i in 1:4) {
+	subset_PAR = which(drift_dataf$PARAM_name == PARAM_NAMES[i])
+	fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=drift_dataf, subset=subset_PAR)
+
+	fitted_coeff_drift[[PARAM_NAMES[i]]] = fit_ABC$coefficients
+	A_axis_drift[i] = fit_ABC$coefficients[1]	
+	B_axis_drift[i] = fit_ABC$coefficients[2]	
+	C_axis_drift[i] = fit_ABC$coefficients[3]	
+
+	drift_dataf_5C$PARAM[subset_PAR] = drift_dataf_5C$PARAM[subset_PAR] - B_axis_drift[i] * (drift_dataf_5C$PARAM_Ts[subset_PAR] - 5)
+}
+
+range_time = range(drift_dataf$PARAM_date)
+data_fit_drift = data.frame(
+	PARAM_name = rep(PARAM_NAMES, each=2),
+	x = rep(range_time, 4),
+	y = rep(A_axis_drift, each=2) + rep(C_axis_drift, each=2) * rep(range_time, 4) + rep(B_axis_drift, each=2) * 5
+)
+
+g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+	geom_point() +
+	scale_color_viridis() +
+	facet_wrap(~PARAM_name, scale="free_y")
+g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+	geom_point() +
+	scale_color_viridis() +
+	facet_wrap(~PARAM_name, scale="free_y")
+	
+g4_fit = g4 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
+g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
+
+
+####################################
+#### End of drift considerations
+####################################
 
 PAR = NULL
 PAR_Ts = NULL
@@ -134,7 +218,12 @@ for (param_name in PARAM_NAMES) {
 	for (i in 1:length(files_night)) {
 		match = get_Ts_match(path_to_netcdf, files_night[i], param_name)
 
-		PAR = c(PAR, match$PARAM)
+		### correct for drift
+		night_undrifted = as.numeric( match$PARAM - fitted_coeff_drift[[param_name]][1] - fitted_coeff_drift[[param_name]][3] * date_night[i] )
+		
+		#PAR = c(PAR, match$PARAM)
+		PAR = c(PAR, night_undrifted)
+		
 		PAR_Ts = c(PAR_Ts, match$Ts)
 
 		PAR_date_new = rep(date_night[i], length(match$PARAM))
@@ -152,7 +241,7 @@ for (param_name in PARAM_NAMES) {
 		match_not_na = which(!is.na(match$PARAM))
 		if (length(match_not_na) > 4) {
 			
-			### select dark from lillifors test following Organelli et al
+			### select dark from lilliefors test following Organelli et al
 			match_param = match$PARAM[match_not_na]
 			lillie_pval = rep(NA, length(match_param))
 			for (j in 1:(length(match_param)-4)) {
@@ -162,16 +251,19 @@ for (param_name in PARAM_NAMES) {
 			if (any(signif, na.rm=T)) {
 				j_dark = which(signif)[1] - 1
 				subsel_dark = match_not_na[j_dark:length(match_not_na)]
+				
+				### correct for drift
+				dark_undrifted = as.numeric( match$PARAM[subsel_dark] - fitted_coeff_drift[[param_name]][1] - fitted_coeff_drift[[param_name]][3] * date_day[i] )
 
-				DAY = c(DAY, match$PARAM[subsel_dark])
+				#DAY = c(DAY, match$PARAM[subsel_dark])
+				DAY = c(DAY, dark_undrifted)
+				
 				DAY_Ts = c(DAY_Ts, match$Ts[subsel_dark])
 	
 				DAY_date_new = rep(date_day[i], length(subsel_dark))
-				#DAY_date_new[which(is.na(match$PARAM))] = NA
 				DAY_date = c(DAY_date, DAY_date_new)
 			
 				DAY_name_new = rep(param_name, length(subsel_dark))
-				#DAY_name_new[which(is.na(match$PARAM))] = NA
 				DAY_name = c(DAY_name, DAY_name_new)
 			}
 		}
@@ -238,10 +330,10 @@ data_fit_day = data.frame(
 )
 
 g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
-g2_1 = g2 + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="green")
+g2_1 = g2 + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
 
 g2_day = g1_day + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
-g2_1_day = g2_day + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="green")
+g2_1_day = g2_day + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
 
 
 n_cores = detectCores()
@@ -325,95 +417,5 @@ corr_file <- function(file_name, path_to_netcdf, use_day=FALSE) {
 #corr_all = mcmapply(corr_file, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
 #							MoreArgs=list(path_to_netcdf=path_to_netcdf, use_day=TRUE))
 
-####################################
-### Start of drift considerations
-####################################
-
-traj_name_B = paste(path_to_netcdf, dac[subset[1]], "/", WMO, "/", WMO, "_BRtraj.nc", sep="")
-traj_name_C = paste(path_to_netcdf, dac[subset[1]], "/", WMO, "/", WMO, "_Rtraj.nc", sep="")
-
-fnc_B = nc_open(traj_name_B)
-fnc_C = nc_open(traj_name_C)
-
-temp = ncvar_get(fnc_C, "TEMP")
-juld_B = ncvar_get(fnc_B, "JULD")
-juld_C = ncvar_get(fnc_C, "JULD")
-code = ncvar_get(fnc_B, "MEASUREMENT_CODE")
-
-drift_C = which(!is.na(temp) & code==290) #290 may not be the only correct code
-
-
-PAR = NULL
-PAR_Ts = NULL
-PAR_date = NULL
-PAR_name = NULL
-for (param_name in PARAM_NAMES) {
-	irr = ncvar_get(fnc_B, param_name)
-
-	drift_B = which(!is.na(irr) & code==290) #290 may not be the only correct code
-
-	drift_match = rep(NA, length(drift_B))
-	for (i in 1:length(drift_B)) {
-		match_dist = abs(juld_B[drift_B[i]] - juld_C[drift_C])
-		drift_match[i] = min(which( match_dist == min(match_dist) ))
-	}
-
-	#k = 0.19/60 # s^-1
-	#delta_t = 54 # s
-	#lag = (delta_t + 1/k) / (3600*24) # d # lag for Ts when trailing a linear Tw
-
-	#Ts = rep(NA, length(drift_C))
-	#Ts[1] = temp[drift_C[1]]
-	#for (i in 2:length(drift_C)) {
-	#	Ts[i] = temp[drift_C[i]] - lag * (temp[drift_C[i]] - temp[drift_C[i-1]]) / (juld_C[drift_C[i]] - juld_C[drift_C[i-1]])
-	#} # we assume a long time between drift measurement and linear rate of change between them
-	
-	PAR = c(PAR, irr[drift_B])	
-	PAR_Ts = c(PAR_Ts, temp[drift_C[drift_match]])
-	PAR_date = c(PAR_date, juld_B[drift_B])
-	PAR_name = c(PAR_name, rep(param_name, length(drift_B)))	
-}
-nc_close(fnc_B)
-nc_close(fnc_C)
-
-drift_dataf = data.frame("PARAM"=PAR, "PARAM_Ts"=PAR_Ts, "PARAM_date"=PAR_date, "PARAM_name"=PAR_name)
-
-A_axis_drift = rep(NA, 4)
-B_axis_drift = rep(NA, 4)
-C_axis_drift = rep(NA, 4)
-drift_dataf_5C = drift_dataf
-for (i in 1:4) {
-	subset_PAR = which(drift_dataf$PARAM_name == PARAM_NAMES[i])
-	fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=drift_dataf, subset=subset_PAR)
-	A_axis_drift[i] = fit_ABC$coefficients[1]	
-	B_axis_drift[i] = fit_ABC$coefficients[2]	
-	C_axis_drift[i] = fit_ABC$coefficients[3]	
-
-	drift_dataf_5C$PARAM[subset_PAR] = drift_dataf_5C$PARAM[subset_PAR] - B_axis_drift[i] * (drift_dataf_5C$PARAM_Ts[subset_PAR] - 5)
-}
-
-range_time = range(drift_dataf$PARAM_date)
-data_fit_drift = data.frame(
-	PARAM_name = rep(PARAM_NAMES, each=2),
-	x = rep(range_time, 4),
-	y = rep(A_axis_drift, each=2) + rep(C_axis_drift, each=2) * rep(range_time, 4) + rep(B_axis_drift, each=2) * 5
-)
-
-g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
-	geom_point() +
-	scale_color_viridis() +
-	facet_wrap(~PARAM_name, scale="free_y")
-g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
-	geom_point() +
-	scale_color_viridis() +
-	facet_wrap(~PARAM_name, scale="free_y")
-	
-g4_fit = g4 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
-g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
-
-
-####################################
-#### End of drift considerations
-####################################
 
 
