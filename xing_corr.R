@@ -30,9 +30,12 @@ lon = index_ifremer$longitude #retrieve the longitude of all profiles as a vecto
 prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 
 
-WMO = "6901525"
-#WMO = "6901524"
+#WMO = "6901525"
+WMO = "6901524"
 #WMO = "6902827"
+#WMO = "6901494"
+#WMO = "6901576"
+#WMO = "6902735"
 
 subset = which( wod==WMO & substr(prof_id,14,14)!="D" )
 #subset = which( wod==WMO )
@@ -181,7 +184,7 @@ for (i in 1:4) {
 	drift_dataf_5C$PARAM[subset_PAR] = drift_dataf_5C$PARAM[subset_PAR] - B_axis_drift[i] * (drift_dataf_5C$PARAM_Ts[subset_PAR] - 5)
 }
 
-range_time = range(drift_dataf$PARAM_date)
+range_time = range(c(drift_dataf$PARAM_date, date_day, date_night))
 data_fit_drift = data.frame(
 	PARAM_name = rep(PARAM_NAMES, each=2),
 	x = rep(range_time, 4),
@@ -213,6 +216,8 @@ DAY = NULL
 DAY_Ts = NULL
 DAY_date = NULL
 DAY_name = NULL
+DAY_profi = NULL
+DAY_darkmed = NULL
 
 for (param_name in PARAM_NAMES) {
 	for (i in 1:length(files_night)) {
@@ -265,12 +270,41 @@ for (param_name in PARAM_NAMES) {
 			
 				DAY_name_new = rep(param_name, length(subsel_dark))
 				DAY_name = c(DAY_name, DAY_name_new)
+				
+				DAY_profi_new = rep(i, length(subsel_dark))
+				DAY_profi = c(DAY_profi, DAY_profi_new)
+
+				DAY_darkmed_new = rep(median(dark_undrifted), length(subsel_dark))
+				DAY_darkmed = c(DAY_darkmed, DAY_darkmed_new)
 			}
 		}
 	}
 }
 PAR_dataf = data.frame("PARAM"=PAR, "PARAM_Ts"=PAR_Ts, "PARAM_date"=PAR_date, "PARAM_name"=PAR_name)
-DAY_dataf = data.frame("PARAM"=DAY, "PARAM_Ts"=DAY_Ts, "PARAM_date"=DAY_date, "PARAM_name"=DAY_name)
+DAY_dataf_all = data.frame("PARAM"=DAY, "PARAM_Ts"=DAY_Ts, "PARAM_date"=DAY_date, "PARAM_name"=DAY_name,
+						"profi"=DAY_profi, "darkmed"=DAY_darkmed)
+
+
+### remove dark median outliers
+is_dark_outlier = rep(NA, length(DAY_dataf_all$PARAM))
+for (param_name in PARAM_NAMES) {
+	param_axis = which(DAY_dataf_all$PARAM_name == param_name)
+
+	all_profi = unique(DAY_dataf_all$profi[param_axis])
+	all_dark_median = rep(NA, length(all_profi))
+	for (i in 1:length(all_profi)) {
+		all_dark_median[i] = DAY_dataf_all$darkmed[min(which(DAY_dataf_all$profi == all_profi[i] & DAY_dataf_all$PARAM_name == param_name))]
+	}
+ 
+	quartiles = quantile(all_dark_median, probs=c(0.25, 0.75))
+	margin = as.numeric(1.5 * (quartiles[2] - quartiles[1]))
+	outliers_lim = c(quartiles[1] - margin, quartiles[2] + margin)
+
+	is_dark_outlier[param_axis] = (DAY_dataf_all$darkmed[param_axis] < outliers_lim[1] | DAY_dataf_all$darkmed[param_axis] > outliers_lim[2])
+}
+
+DAY_dataf = DAY_dataf_all[which(!is_dark_outlier),]
+
 
 g1 = ggplot(na.omit(PAR_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
 	geom_point() +
@@ -316,7 +350,7 @@ for (i in 1:length(PARAM_NAMES)) {
 	
 }
 
-Ts_range = range(PAR_dataf$PARAM_Ts, na.rm=T)
+Ts_range = range(c(PAR_dataf$PARAM_Ts, DAY_dataf$PARAM_Ts), na.rm=T)
 
 data_fit = data.frame(
 	PARAM_name = rep(PARAM_NAMES, each=2),
