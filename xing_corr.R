@@ -24,20 +24,24 @@ dac = ident[,1] #retrieve the DAC of all profiles as a vector
 wod = ident[,2] #retrieve the WMO of all profiles as a vector
 prof_id = ident[,4] #retrieve all profiles  name as a vector
 variables = as.character(index_ifremer$parameters) #retrieve the list of variables available in each file
-variables = strsplit(variables," ") #separate the different available variables of each profile
+#variables = strsplit(variables," ") #separate the different available variables of each profile
 lat = index_ifremer$latitude #retrieve the latitude of all profiles as a vector
 lon = index_ifremer$longitude #retrieve the longitude of all profiles as a vector
 prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 
 
 #WMO = "6901525"
-WMO = "6901524"
-#WMO = "6902827"
-#WMO = "6901494"
+#WMO = "6901524"
+##WMO = "6902827" # no nights ?
+#WMO = "6901494" #not enough drift points ?
 #WMO = "6901576"
 #WMO = "6902735"
+#WMO = "6901473" # again drift data missing, maybe other sensor issueis
+#WMO = "6901474" 
+#WMO = "6901495" # no drift data at all (code 290)
+WMO = "6901584"
 
-subset = which( wod==WMO & substr(prof_id,14,14)!="D" )
+subset = which( wod==WMO & substr(prof_id,14,14)!="D" & !is.na(prof_date) & grepl("DOWNWELLING_PAR", variables))
 #subset = which( wod==WMO )
 
 profile_list = substr(prof_id[subset], 3, 14)
@@ -165,7 +169,22 @@ for (param_name in PARAM_NAMES) {
 nc_close(fnc_B)
 nc_close(fnc_C)
 
-drift_dataf = data.frame("PARAM"=PAR, "PARAM_Ts"=PAR_Ts, "PARAM_date"=PAR_date, "PARAM_name"=PAR_name)
+drift_dataf_all = data.frame("PARAM"=PAR, "PARAM_Ts"=PAR_Ts, "PARAM_date"=PAR_date, "PARAM_name"=PAR_name)
+
+### remove drift outliers
+is_drift_outlier = rep(NA, length(drift_dataf_all$PARAM))
+for (param_name in PARAM_NAMES) {
+	param_axis = which(drift_dataf_all$PARAM_name == param_name)
+
+	quartiles = quantile(drift_dataf_all$PARAM[param_axis], probs=c(0.25, 0.75))
+	margin = as.numeric(1.5 * (quartiles[2] - quartiles[1]))
+	outliers_lim = c(quartiles[1] - margin, quartiles[2] + margin)
+
+	is_drift_outlier[param_axis] = (drift_dataf_all$PARAM[param_axis] < outliers_lim[1] | drift_dataf_all$PARAM[param_axis] > outliers_lim[2])
+}
+
+drift_dataf = drift_dataf_all[which(!is_drift_outlier),]
+
 
 A_axis_drift = rep(NA, 4)
 B_axis_drift = rep(NA, 4)
@@ -239,7 +258,6 @@ for (param_name in PARAM_NAMES) {
 		PAR_name_new[which(is.na(match$PARAM))] = NA
 		PAR_name = c(PAR_name, PAR_name_new)
 	}
-	#PAR_date = as.Date(PAR_date, origin="1970-01-01")
 	for (i in 1:length(files_day)) {
 		match = get_Ts_match(path_to_netcdf, files_day[i], param_name)
 		
