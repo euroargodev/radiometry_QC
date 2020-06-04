@@ -4,11 +4,15 @@ sensor_temp <- function(TEMP, PRES_TEMP, PRES_PARAM) {
 	delta_t = 54 # s
 	asc_speed = 0.1 # m/s
 
-	Tw = rev(TEMP[!is.na(TEMP)])
-	Tw_pres = rev(PRES_TEMP[!is.na(PRES_TEMP)])
+	Tw = rev(TEMP[!is.na(TEMP) & !is.na(PRES_TEMP)])
+	Tw_pres = rev(PRES_TEMP[!is.na(TEMP) & !is.na(PRES_TEMP)])
 	Tw_time = (max(Tw_pres) - Tw_pres) / asc_speed #assuming 1m/db for now
 
 	n_time = length(Tw)
+	
+	if (n_time < 2) {
+		return(rep(NA, length(PRES_PARAM)))
+	}
 	
 	Ts = rep(NA, n_time)
 	Ts[1] = Tw[1]
