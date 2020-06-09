@@ -12,6 +12,8 @@ source("~/Documents/radiometry/possol.R")
 source("~/Documents/radiometry/sensor_temp.R")
 #source("~/Documents/cornec_chla_qc/chl_bbp_ttt/DM_writing/write_DM.R")
 
+n_cores = detectCores()
+
 #path_to_netcdf = "/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
 path_to_netcdf = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
 
@@ -36,10 +38,20 @@ prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 #WMO = "6901494" #not enough drift points ?
 #WMO = "6901576"
 #WMO = "6902735"
-#WMO = "6901473" # again drift data missing, maybe other sensor issueis
+#WMO = "6901473" # again drift data missing, maybe other sensor issues
 #WMO = "6901474" 
 #WMO = "6901495" # no drift data at all (code 290)
-WMO = "6901584"
+#WMO = "6901584"
+#WMO = "6901658" # Xing works very well, new method doesn't because light penetrates very deep
+#WMO = "6902547"
+#WMO = "6902742"
+#WMO = "6902828" # Xing works well, new method not quite on PAR
+#WMO = "6902879" # no drift data (code 290)
+#WMO = "6902906" # no drift data (code 290)
+#WMO = "6903551" # drift bizarre, très peu de variation de Ts, bad data ?
+WMO = "7900561" # both methods work very well
+
+
 
 subset = which( wod==WMO & substr(prof_id,14,14)!="D" & !is.na(prof_date) & grepl("DOWNWELLING_PAR", variables))
 #subset = which( wod==WMO )
@@ -227,10 +239,71 @@ g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
 #### End of drift considerations
 ####################################
 
-PAR = NULL
-PAR_Ts = NULL
-PAR_date = NULL
-PAR_name = NULL
+get_profile_match <- function(file_name, param_name, PROFILE_DATE, day_method=FALSE) {
+
+	match = get_Ts_match(path_to_netcdf=path_to_netcdf, file_name=file_name, PARAM_NAME=param_name)
+
+	match_not_na = which(!is.na(match$PARAM) & !is.na(match$Ts))
+	
+	### correct for drift	
+	param_undrifted = as.numeric( match$PARAM - fitted_coeff_drift[[param_name]][1] - fitted_coeff_drift[[param_name]][3] * PROFILE_DATE )
+
+	if (!day_method) {	
+		
+		MATCH = param_undrifted[match_not_na]
+		MATCH_Ts = match$Ts[match_not_na]
+		MATCH_date = rep(PROFILE_DATE, length(match_not_na))
+		MATCH_name = rep(param_name, length(match_not_na))
+
+		return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name))
+
+	} else {
+		
+		if (length(match_not_na) > 4) {	
+
+			### select dark from lilliefors test following Organelli et al
+			match_param = match$PARAM[match_not_na]
+			lillie_pval = rep(NA, length(match_param))
+			for (j in 1:(length(match_param)-4)) {
+				lillie_pval[j] = lillie.test(match_param[j:length(match_param)])$p.value
+			}
+			signif = (abs(lillie_pval) > 0.01)
+
+			if (any(signif, na.rm=T)) {
+				j_dark = which(signif)[1] - 1
+				subsel_dark = match_not_na[j_dark:length(match_not_na)]
+			
+				MATCH = param_undrifted[subsel_dark]
+				MATCH_Ts = match$Ts[subsel_dark]
+				MATCH_date = rep(PROFILE_DATE, length(subsel_dark))
+				MATCH_name = rep(param_name, length(match_not_na))
+				MATCH_darkmed = median(MATCH)
+			}
+		}
+		MATCH = NULL
+		MATCH_Ts = NULL
+		MATCH_date = NULL
+		MATCH_name = NULL
+		MATCH_darkmed = NULL
+		return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name,
+					"MATCH_darkmed"=MATCH_darkmed))
+	}	
+}
+
+files_night_PARALLEL = rep(files_night, 4)
+date_night_PARALLEL = rep(date_night, 4)
+PARAM_NAMES_night_PARALLEL = rep(PARAM_NAMES, each=length(files_night))
+
+NIGHT_MATCH = mcmapply(get_profile_match, file_name=files_night_PARALLEL, param_name=PARAM_NAMES_night_PARALLEL,
+						PROFILE_DATE=date_night_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE)
+
+PAR_dataf = data.frame("PARAM"=unlist(NIGHT_MATCH[1,]), "PARAM_Ts"=unlist(NIGHT_MATCH[2,]), 
+					   "PARAM_date"=unlist(NIGHT_MATCH[3,]), "PARAM_name"=unlist(NIGHT_MATCH[4,]))
+
+#PAR = NULL
+#PAR_Ts = NULL
+#PAR_date = NULL
+#PAR_name = NULL
 DAY = NULL
 DAY_Ts = NULL
 DAY_date = NULL
@@ -239,25 +312,25 @@ DAY_profi = NULL
 DAY_darkmed = NULL
 
 for (param_name in PARAM_NAMES) {
-	for (i in 1:length(files_night)) {
-		match = get_Ts_match(path_to_netcdf, files_night[i], param_name)
+	#for (i in 1:length(files_night)) {
+	#	match = get_Ts_match(path_to_netcdf, files_night[i], param_name)
 
-		### correct for drift
-		night_undrifted = as.numeric( match$PARAM - fitted_coeff_drift[[param_name]][1] - fitted_coeff_drift[[param_name]][3] * date_night[i] )
+	#	### correct for drift
+	#	night_undrifted = as.numeric( match$PARAM - fitted_coeff_drift[[param_name]][1] - fitted_coeff_drift[[param_name]][3] * date_night[i] )
 		
-		#PAR = c(PAR, match$PARAM)
-		PAR = c(PAR, night_undrifted)
-		
-		PAR_Ts = c(PAR_Ts, match$Ts)
-
-		PAR_date_new = rep(date_night[i], length(match$PARAM))
-		PAR_date_new[which(is.na(match$PARAM))] = NA
-		PAR_date = c(PAR_date, PAR_date_new)
-		
-		PAR_name_new = rep(param_name, length(match$PARAM))
-		PAR_name_new[which(is.na(match$PARAM))] = NA
-		PAR_name = c(PAR_name, PAR_name_new)
-	}
+	#	#PAR = c(PAR, match$PARAM)
+	#	PAR = c(PAR, night_undrifted)
+	#	
+	#	PAR_Ts = c(PAR_Ts, match$Ts)
+#
+	#	PAR_date_new = rep(date_night[i], length(match$PARAM))
+	#	PAR_date_new[which(is.na(match$PARAM))] = NA
+	#	PAR_date = c(PAR_date, PAR_date_new)
+	#	
+	#	PAR_name_new = rep(param_name, length(match$PARAM))
+	#	PAR_name_new[which(is.na(match$PARAM))] = NA
+	#	PAR_name = c(PAR_name, PAR_name_new)
+	#}
 	for (i in 1:length(files_day)) {
 		match = get_Ts_match(path_to_netcdf, files_day[i], param_name)
 		
@@ -298,7 +371,7 @@ for (param_name in PARAM_NAMES) {
 		}
 	}
 }
-PAR_dataf = data.frame("PARAM"=PAR, "PARAM_Ts"=PAR_Ts, "PARAM_date"=PAR_date, "PARAM_name"=PAR_name)
+#PAR_dataf = data.frame("PARAM"=PAR, "PARAM_Ts"=PAR_Ts, "PARAM_date"=PAR_date, "PARAM_name"=PAR_name)
 DAY_dataf_all = data.frame("PARAM"=DAY, "PARAM_Ts"=DAY_Ts, "PARAM_date"=DAY_date, "PARAM_name"=DAY_name,
 						"profi"=DAY_profi, "darkmed"=DAY_darkmed)
 
@@ -388,7 +461,6 @@ g2_day = g1_day + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
 g2_1_day = g2_day + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
 
 
-n_cores = detectCores()
 all_match_380 = mcmapply(get_Ts_match, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
 							MoreArgs=list(path_to_netcdf=path_to_netcdf, PARAM_NAME="DOWN_IRRADIANCE380"))
 
