@@ -158,10 +158,10 @@ code = ncvar_get(fnc_B, "MEASUREMENT_CODE")
 drift_C = which(!is.na(temp) & code==290) #290 may not be the only correct code
 
 
-PAR = NULL
-PAR_Ts = NULL
-PAR_date = NULL
-PAR_name = NULL
+DRIFT = NULL
+DRIFT_Ts = NULL
+DRIFT_date = NULL
+DRIFT_name = NULL
 for (param_name in PARAM_NAMES) {
 	irr = ncvar_get(fnc_B, param_name)
 
@@ -173,15 +173,15 @@ for (param_name in PARAM_NAMES) {
 		drift_match[i] = min(which( match_dist == min(match_dist) ))
 	}
 
-	PAR = c(PAR, irr[drift_B])	
-	PAR_Ts = c(PAR_Ts, temp[drift_C[drift_match]])
-	PAR_date = c(PAR_date, juld_B[drift_B])
-	PAR_name = c(PAR_name, rep(param_name, length(drift_B)))	
+	DRIFT = c(DRIFT, irr[drift_B])	
+	DRIFT_Ts = c(DRIFT_Ts, temp[drift_C[drift_match]])
+	DRIFT_date = c(DRIFT_date, juld_B[drift_B])
+	DRIFT_name = c(DRIFT_name, rep(param_name, length(drift_B)))	
 }
 nc_close(fnc_B)
 nc_close(fnc_C)
 
-drift_dataf_all = data.frame("PARAM"=PAR, "PARAM_Ts"=PAR_Ts, "PARAM_date"=PAR_date, "PARAM_name"=PAR_name)
+drift_dataf_all = data.frame("PARAM"=DRIFT, "PARAM_Ts"=DRIFT_Ts, "PARAM_date"=DRIFT_date, "PARAM_name"=DRIFT_name)
 
 ### remove drift outliers
 is_drift_outlier = rep(NA, length(drift_dataf_all$PARAM))
@@ -276,17 +276,13 @@ get_profile_match <- function(file_name, param_name, PROFILE_DATE, day_method=FA
 				MATCH = param_undrifted[subsel_dark]
 				MATCH_Ts = match$Ts[subsel_dark]
 				MATCH_date = rep(PROFILE_DATE, length(subsel_dark))
-				MATCH_name = rep(param_name, length(match_not_na))
+				MATCH_name = rep(param_name, length(subsel_dark))
 				MATCH_darkmed = median(MATCH)
+				return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name,
+							"MATCH_darkmed"=MATCH_darkmed))
 			}
 		}
-		MATCH = NULL
-		MATCH_Ts = NULL
-		MATCH_date = NULL
-		MATCH_name = NULL
-		MATCH_darkmed = NULL
-		return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name,
-					"MATCH_darkmed"=MATCH_darkmed))
+		return(list("MATCH"=NULL, "MATCH_Ts"=NULL, "MATCH_date"=NULL, "MATCH_name"=NULL, "MATCH_darkmed"=NULL))
 	}	
 }
 
@@ -294,107 +290,35 @@ files_night_PARALLEL = rep(files_night, 4)
 date_night_PARALLEL = rep(date_night, 4)
 PARAM_NAMES_night_PARALLEL = rep(PARAM_NAMES, each=length(files_night))
 
+files_day_PARALLEL = rep(files_day, 4)
+date_day_PARALLEL = rep(date_day, 4)
+PARAM_NAMES_day_PARALLEL = rep(PARAM_NAMES, each=length(files_day))
+
 NIGHT_MATCH = mcmapply(get_profile_match, file_name=files_night_PARALLEL, param_name=PARAM_NAMES_night_PARALLEL,
 						PROFILE_DATE=date_night_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE)
+DAY_MATCH = mcmapply(get_profile_match, file_name=files_day_PARALLEL, param_name=PARAM_NAMES_day_PARALLEL,
+						PROFILE_DATE=date_day_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
+						MoreArgs=list(day_method=TRUE))
 
-PAR_dataf = data.frame("PARAM"=unlist(NIGHT_MATCH[1,]), "PARAM_Ts"=unlist(NIGHT_MATCH[2,]), 
-					   "PARAM_date"=unlist(NIGHT_MATCH[3,]), "PARAM_name"=unlist(NIGHT_MATCH[4,]))
-
-#PAR = NULL
-#PAR_Ts = NULL
-#PAR_date = NULL
-#PAR_name = NULL
-DAY = NULL
-DAY_Ts = NULL
-DAY_date = NULL
-DAY_name = NULL
-DAY_profi = NULL
-DAY_darkmed = NULL
-
+### find dark median outliers in day profiles
+is_dark_outlier = rep(NA, length(files_day_PARALLEL))
+all_dark_median = unlist(DAY_MATCH[5,])
 for (param_name in PARAM_NAMES) {
-	#for (i in 1:length(files_night)) {
-	#	match = get_Ts_match(path_to_netcdf, files_night[i], param_name)
+	param_axis = which(PARAM_NAMES_day_PARALLEL == param_name)
 
-	#	### correct for drift
-	#	night_undrifted = as.numeric( match$PARAM - fitted_coeff_drift[[param_name]][1] - fitted_coeff_drift[[param_name]][3] * date_night[i] )
-		
-	#	#PAR = c(PAR, match$PARAM)
-	#	PAR = c(PAR, night_undrifted)
-	#	
-	#	PAR_Ts = c(PAR_Ts, match$Ts)
-#
-	#	PAR_date_new = rep(date_night[i], length(match$PARAM))
-	#	PAR_date_new[which(is.na(match$PARAM))] = NA
-	#	PAR_date = c(PAR_date, PAR_date_new)
-	#	
-	#	PAR_name_new = rep(param_name, length(match$PARAM))
-	#	PAR_name_new[which(is.na(match$PARAM))] = NA
-	#	PAR_name = c(PAR_name, PAR_name_new)
-	#}
-	for (i in 1:length(files_day)) {
-		match = get_Ts_match(path_to_netcdf, files_day[i], param_name)
-		
-		match_not_na = which(!is.na(match$PARAM))
-		if (length(match_not_na) > 4) {
-			
-			### select dark from lilliefors test following Organelli et al
-			match_param = match$PARAM[match_not_na]
-			lillie_pval = rep(NA, length(match_param))
-			for (j in 1:(length(match_param)-4)) {
-				lillie_pval[j] = lillie.test(match_param[j:length(match_param)])$p.value
-			}
-			signif = (abs(lillie_pval) > 0.01)
-			if (any(signif, na.rm=T)) {
-				j_dark = which(signif)[1] - 1
-				subsel_dark = match_not_na[j_dark:length(match_not_na)]
-				
-				### correct for drift
-				dark_undrifted = as.numeric( match$PARAM[subsel_dark] - fitted_coeff_drift[[param_name]][1] - fitted_coeff_drift[[param_name]][3] * date_day[i] )
-
-				#DAY = c(DAY, match$PARAM[subsel_dark])
-				DAY = c(DAY, dark_undrifted)
-				
-				DAY_Ts = c(DAY_Ts, match$Ts[subsel_dark])
-	
-				DAY_date_new = rep(date_day[i], length(subsel_dark))
-				DAY_date = c(DAY_date, DAY_date_new)
-			
-				DAY_name_new = rep(param_name, length(subsel_dark))
-				DAY_name = c(DAY_name, DAY_name_new)
-				
-				DAY_profi_new = rep(i, length(subsel_dark))
-				DAY_profi = c(DAY_profi, DAY_profi_new)
-
-				DAY_darkmed_new = rep(median(dark_undrifted), length(subsel_dark))
-				DAY_darkmed = c(DAY_darkmed, DAY_darkmed_new)
-			}
-		}
-	}
-}
-#PAR_dataf = data.frame("PARAM"=PAR, "PARAM_Ts"=PAR_Ts, "PARAM_date"=PAR_date, "PARAM_name"=PAR_name)
-DAY_dataf_all = data.frame("PARAM"=DAY, "PARAM_Ts"=DAY_Ts, "PARAM_date"=DAY_date, "PARAM_name"=DAY_name,
-						"profi"=DAY_profi, "darkmed"=DAY_darkmed)
-
-
-### remove dark median outliers
-is_dark_outlier = rep(NA, length(DAY_dataf_all$PARAM))
-for (param_name in PARAM_NAMES) {
-	param_axis = which(DAY_dataf_all$PARAM_name == param_name)
-
-	all_profi = unique(DAY_dataf_all$profi[param_axis])
-	all_dark_median = rep(NA, length(all_profi))
-	for (i in 1:length(all_profi)) {
-		all_dark_median[i] = DAY_dataf_all$darkmed[min(which(DAY_dataf_all$profi == all_profi[i] & DAY_dataf_all$PARAM_name == param_name))]
-	}
- 
-	quartiles = quantile(all_dark_median, probs=c(0.25, 0.75))
+	quartiles = quantile(all_dark_median[param_axis], probs=c(0.25, 0.75))
 	margin = as.numeric(1.5 * (quartiles[2] - quartiles[1]))
 	outliers_lim = c(quartiles[1] - margin, quartiles[2] + margin)
 
-	is_dark_outlier[param_axis] = (DAY_dataf_all$darkmed[param_axis] < outliers_lim[1] | DAY_dataf_all$darkmed[param_axis] > outliers_lim[2])
+	is_dark_outlier[param_axis] = (all_dark_median[param_axis] < outliers_lim[1] | all_dark_median[param_axis] > outliers_lim[2])
 }
 
-DAY_dataf = DAY_dataf_all[which(!is_dark_outlier),]
+PAR_dataf = data.frame("PARAM"=unlist(NIGHT_MATCH[1,]), "PARAM_Ts"=unlist(NIGHT_MATCH[2,]), 
+					   "PARAM_date"=unlist(NIGHT_MATCH[3,]), "PARAM_name"=unlist(NIGHT_MATCH[4,]))
+DAY_dataf = data.frame("PARAM"=unlist(DAY_MATCH[1,!is_dark_outlier]), 
+						"PARAM_Ts"=unlist(DAY_MATCH[2,!is_dark_outlier]), 
+					   	"PARAM_date"=unlist(DAY_MATCH[3,!is_dark_outlier]), 
+						"PARAM_name"=unlist(DAY_MATCH[4,!is_dark_outlier]))
 
 
 g1 = ggplot(na.omit(PAR_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
@@ -455,10 +379,10 @@ data_fit_day = data.frame(
 )
 
 g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
-g2_1 = g2 + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
+g3 = g2 + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
 
 g2_day = g1_day + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
-g2_1_day = g2_day + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
+g3_day = g2_day + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
 
 
 all_match_380 = mcmapply(get_Ts_match, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
