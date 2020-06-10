@@ -49,7 +49,9 @@ prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 #WMO = "6902879" # no drift data (code 290)
 #WMO = "6902906" # no drift data (code 290)
 #WMO = "6903551" # drift bizarre, très peu de variation de Ts, bad data ?
-WMO = "7900561" # both methods work very well
+#WMO = "7900561" # both methods work very well
+#WMO = "6901492" # both good
+WMO = "6903025"
 
 
 
@@ -301,10 +303,11 @@ DAY_MATCH = mcmapply(get_profile_match, file_name=files_day_PARALLEL, param_name
 						MoreArgs=list(day_method=TRUE))
 
 ### find dark median outliers in day profiles
-is_dark_outlier = rep(NA, length(files_day_PARALLEL))
+all_param_names = unlist(lapply(DAY_MATCH[4,], `[[`, 1)) # extract the first element of each profile
+is_dark_outlier = rep(NA, length(all_param_names))
 all_dark_median = unlist(DAY_MATCH[5,])
 for (param_name in PARAM_NAMES) {
-	param_axis = which(PARAM_NAMES_day_PARALLEL == param_name)
+	param_axis = which(all_param_names == param_name)
 
 	quartiles = quantile(all_dark_median[param_axis], probs=c(0.25, 0.75))
 	margin = as.numeric(1.5 * (quartiles[2] - quartiles[1]))
