@@ -43,7 +43,7 @@ prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 #WMO = "6901495" # no drift data at all (code 290)
 #WMO = "6901584"
 #WMO = "6901658" # Xing works very well, new method doesn't because light penetrates very deep
-#WMO = "6902547"
+WMO = "6902547"
 #WMO = "6902742"
 #WMO = "6902828" # Xing works well, new method not quite on PAR
 #WMO = "6902879" # no drift data (code 290)
@@ -51,7 +51,7 @@ prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 #WMO = "6903551" # drift bizarre, très peu de variation de Ts, bad data ?
 #WMO = "7900561" # both methods work very well
 #WMO = "6901492" # both good
-WMO = "6903025"
+#WMO = "6903025" # Xing great, new method fails like 6901658 because of deep light gradients
 
 
 
@@ -88,6 +88,10 @@ files_day = files_list[day]
 date_day = as.Date(as.character(prof_date_list[day]), format="%Y%m%d%H%M%S", tz="UTC")
 date_day = julian(date_day, origin=as.Date("1950-01-01", tz="UTC"))
 
+date_list = as.Date(as.character(prof_date_list), format="%Y%m%d%H%M%S", tz="UTC")
+date_list = julian(date_list, origin=as.Date("1950-01-01", tz="UTC"))
+
+PARAM_NAMES = c("DOWNWELLING_PAR", "DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", "DOWN_IRRADIANCE490")
 
 get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 	
@@ -140,7 +144,77 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 	return(list("PARAM"=PARAM, "Ts"=fitted_Ts, "PRES"=PRES_B, "id_prof"=id_prof_B, "n_levels"=n_levels_B))
 }
 
-PARAM_NAMES = c("DOWNWELLING_PAR", "DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", "DOWN_IRRADIANCE490")
+get_profile_match <- function(file_name, param_name, PROFILE_DATE, method="night") {
+
+	match = get_Ts_match(path_to_netcdf=path_to_netcdf, file_name=file_name, PARAM_NAME=param_name)
+
+	match_not_na = which(!is.na(match$PARAM) & !is.na(match$Ts))
+
+	if (method == "night") {	
+		
+		### correct for drift	
+		param_undrifted = as.numeric( match$PARAM - fitted_coeff_drift[[param_name]][1] - fitted_coeff_drift[[param_name]][3] * PROFILE_DATE )
+
+		MATCH = param_undrifted[match_not_na]
+		MATCH_Ts = match$Ts[match_not_na]
+		MATCH_date = rep(PROFILE_DATE, length(match_not_na))
+		MATCH_name = rep(param_name, length(match_not_na))
+
+		return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name))
+
+	} 
+
+	if (method == "day") {
+		
+		if (length(match_not_na) > 4) {	
+
+			### select dark from lilliefors test following Organelli et al
+			match_param = match$PARAM[match_not_na]
+			lillie_pval = rep(NA, length(match_param))
+			for (j in 1:(length(match_param)-4)) {
+				lillie_pval[j] = lillie.test(match_param[j:length(match_param)])$p.value
+			}
+			signif = (abs(lillie_pval) > 0.01)
+
+			if (any(signif, na.rm=T)) {
+				j_dark = which(signif)[1] - 1
+				subsel_dark = match_not_na[j_dark:length(match_not_na)]
+	
+				### correct for drift	
+				param_undrifted = as.numeric( match$PARAM - fitted_coeff_drift[[param_name]][1] - fitted_coeff_drift[[param_name]][3] * PROFILE_DATE )
+			
+				MATCH = param_undrifted[subsel_dark]
+				MATCH_Ts = match$Ts[subsel_dark]
+				MATCH_date = rep(PROFILE_DATE, length(subsel_dark))
+				MATCH_name = rep(param_name, length(subsel_dark))
+				MATCH_darkmed = median(MATCH)
+				return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name,
+							"MATCH_darkmed"=MATCH_darkmed))
+			}
+		}
+		return(list("MATCH"=NULL, "MATCH_Ts"=NULL, "MATCH_date"=NULL, "MATCH_name"=NULL, "MATCH_darkmed"=NULL))
+	}
+
+	if (method == "drift") {
+
+		match_param = match$PARAM[match_not_na]
+		match_Ts = match$Ts[match_not_na]
+		match_pres = match$PRES[match_not_na]
+		
+		valid_for_drift = which(match_pres > 240 & match_Ts < 10)
+		
+		if (length(valid_for_drift) == 0) {
+			return(list("MATCH"=NULL, "MATCH_Ts"=NULL, "MATCH_date"=NULL, "MATCH_name"=NULL))
+		}		
+
+		MATCH = match_param[valid_for_drift]
+		MATCH_Ts = match_Ts[valid_for_drift]
+		MATCH_date = rep(PROFILE_DATE, length(valid_for_drift))
+		MATCH_name = rep(param_name, length(valid_for_drift))
+
+		return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name))
+	}	
+}
 
 ####################################
 ### Start of drift considerations
@@ -185,8 +259,22 @@ nc_close(fnc_C)
 
 drift_dataf_all = data.frame("PARAM"=DRIFT, "PARAM_Ts"=DRIFT_Ts, "PARAM_date"=DRIFT_date, "PARAM_name"=DRIFT_name)
 
+files_drift_PARALLEL = rep(files_list, 4)
+date_drift_PARALLEL = rep(date_list, 4)
+PARAM_NAMES_drift_PARALLEL = rep(PARAM_NAMES, each=length(files_list))
+
+DRIFT_MATCH = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
+						PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
+						MoreArgs=list(method="drift"))
+DRIFT_dataf_all = data.frame("PARAM"=unlist(DRIFT_MATCH[1,]), 
+						"PARAM_Ts"=unlist(DRIFT_MATCH[2,]), 
+					   	"PARAM_date"=unlist(DRIFT_MATCH[3,]), 
+						"PARAM_name"=unlist(DRIFT_MATCH[4,]))
+
+
 ### remove drift outliers
 is_drift_outlier = rep(NA, length(drift_dataf_all$PARAM))
+is_DRIFT_outlier = rep(NA, length(drift_dataf_all$PARAM))
 for (param_name in PARAM_NAMES) {
 	param_axis = which(drift_dataf_all$PARAM_name == param_name)
 
@@ -195,9 +283,19 @@ for (param_name in PARAM_NAMES) {
 	outliers_lim = c(quartiles[1] - margin, quartiles[2] + margin)
 
 	is_drift_outlier[param_axis] = (drift_dataf_all$PARAM[param_axis] < outliers_lim[1] | drift_dataf_all$PARAM[param_axis] > outliers_lim[2])
+
+	### Alternative method
+	param_axis = which(DRIFT_dataf_all$PARAM_name == param_name)
+
+	quartiles = quantile(DRIFT_dataf_all$PARAM[param_axis], probs=c(0.25, 0.75))
+	margin = as.numeric(1.5 * (quartiles[2] - quartiles[1]))
+	outliers_lim = c(quartiles[1] - margin, quartiles[2] + margin)
+
+	is_DRIFT_outlier[param_axis] = (DRIFT_dataf_all$PARAM[param_axis] < outliers_lim[1] | DRIFT_dataf_all$PARAM[param_axis] > outliers_lim[2])
 }
 
 drift_dataf = drift_dataf_all[which(!is_drift_outlier),]
+DRIFT_dataf = DRIFT_dataf_all[which(!is_DRIFT_outlier),]
 
 
 A_axis_drift = rep(NA, 4)
@@ -205,6 +303,11 @@ B_axis_drift = rep(NA, 4)
 C_axis_drift = rep(NA, 4)
 drift_dataf_5C = drift_dataf
 fitted_coeff_drift = NULL
+A_axis_DRIFT = rep(NA, 4)
+B_axis_DRIFT = rep(NA, 4)
+C_axis_DRIFT = rep(NA, 4)
+DRIFT_dataf_5C = DRIFT_dataf
+fitted_coeff_DRIFT = NULL
 for (i in 1:4) {
 	subset_PAR = which(drift_dataf$PARAM_name == PARAM_NAMES[i])
 	fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=drift_dataf, subset=subset_PAR)
@@ -215,13 +318,29 @@ for (i in 1:4) {
 	C_axis_drift[i] = fit_ABC$coefficients[3]	
 
 	drift_dataf_5C$PARAM[subset_PAR] = drift_dataf_5C$PARAM[subset_PAR] - B_axis_drift[i] * (drift_dataf_5C$PARAM_Ts[subset_PAR] - 5)
+
+	### Alternative drift
+	subset_PAR = which(DRIFT_dataf$PARAM_name == PARAM_NAMES[i])
+	fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=DRIFT_dataf, subset=subset_PAR)
+
+	fitted_coeff_DRIFT[[PARAM_NAMES[i]]] = fit_ABC$coefficients
+	A_axis_DRIFT[i] = fit_ABC$coefficients[1]	
+	B_axis_DRIFT[i] = fit_ABC$coefficients[2]	
+	C_axis_DRIFT[i] = fit_ABC$coefficients[3]	
+
+	DRIFT_dataf_5C$PARAM[subset_PAR] = DRIFT_dataf_5C$PARAM[subset_PAR] - B_axis_DRIFT[i] * (DRIFT_dataf_5C$PARAM_Ts[subset_PAR] - 5)
 }
 
-range_time = range(c(drift_dataf$PARAM_date, date_day, date_night))
+range_time = range(c(drift_dataf$PARAM_date, date_list))
 data_fit_drift = data.frame(
 	PARAM_name = rep(PARAM_NAMES, each=2),
 	x = rep(range_time, 4),
 	y = rep(A_axis_drift, each=2) + rep(C_axis_drift, each=2) * rep(range_time, 4) + rep(B_axis_drift, each=2) * 5
+)
+data_fit_DRIFT = data.frame(
+	PARAM_name = rep(PARAM_NAMES, each=2),
+	x = rep(range_time, 4),
+	y = rep(A_axis_DRIFT, each=2) + rep(C_axis_DRIFT, each=2) * rep(range_time, 4) + rep(B_axis_DRIFT, each=2) * 5
 )
 
 g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
@@ -232,61 +351,27 @@ g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts))
 	geom_point() +
 	scale_color_viridis() +
 	facet_wrap(~PARAM_name, scale="free_y")
+g6 = ggplot(na.omit(DRIFT_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+	geom_point() +
+	scale_color_viridis() +
+	facet_wrap(~PARAM_name, scale="free_y")
+g7 = ggplot(na.omit(DRIFT_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+	geom_point() +
+	scale_color_viridis() +
+	facet_wrap(~PARAM_name, scale="free_y")
 	
-g4_fit = g4 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
-g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
+#g4_fit = g4 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
+g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red") +
+				geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
+
+#g6_fit = g6 + geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
+g7_fit = g7 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red") +
+				geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
 
 
-####################################
-#### End of drift considerations
-####################################
-
-get_profile_match <- function(file_name, param_name, PROFILE_DATE, day_method=FALSE) {
-
-	match = get_Ts_match(path_to_netcdf=path_to_netcdf, file_name=file_name, PARAM_NAME=param_name)
-
-	match_not_na = which(!is.na(match$PARAM) & !is.na(match$Ts))
-	
-	### correct for drift	
-	param_undrifted = as.numeric( match$PARAM - fitted_coeff_drift[[param_name]][1] - fitted_coeff_drift[[param_name]][3] * PROFILE_DATE )
-
-	if (!day_method) {	
-		
-		MATCH = param_undrifted[match_not_na]
-		MATCH_Ts = match$Ts[match_not_na]
-		MATCH_date = rep(PROFILE_DATE, length(match_not_na))
-		MATCH_name = rep(param_name, length(match_not_na))
-
-		return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name))
-
-	} else {
-		
-		if (length(match_not_na) > 4) {	
-
-			### select dark from lilliefors test following Organelli et al
-			match_param = match$PARAM[match_not_na]
-			lillie_pval = rep(NA, length(match_param))
-			for (j in 1:(length(match_param)-4)) {
-				lillie_pval[j] = lillie.test(match_param[j:length(match_param)])$p.value
-			}
-			signif = (abs(lillie_pval) > 0.01)
-
-			if (any(signif, na.rm=T)) {
-				j_dark = which(signif)[1] - 1
-				subsel_dark = match_not_na[j_dark:length(match_not_na)]
-			
-				MATCH = param_undrifted[subsel_dark]
-				MATCH_Ts = match$Ts[subsel_dark]
-				MATCH_date = rep(PROFILE_DATE, length(subsel_dark))
-				MATCH_name = rep(param_name, length(subsel_dark))
-				MATCH_darkmed = median(MATCH)
-				return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name,
-							"MATCH_darkmed"=MATCH_darkmed))
-			}
-		}
-		return(list("MATCH"=NULL, "MATCH_Ts"=NULL, "MATCH_date"=NULL, "MATCH_name"=NULL, "MATCH_darkmed"=NULL))
-	}	
-}
+###############################################
+#### Start of radiometry/Ts matches extraction
+###############################################
 
 files_night_PARALLEL = rep(files_night, 4)
 date_night_PARALLEL = rep(date_night, 4)
@@ -300,7 +385,7 @@ NIGHT_MATCH = mcmapply(get_profile_match, file_name=files_night_PARALLEL, param_
 						PROFILE_DATE=date_night_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE)
 DAY_MATCH = mcmapply(get_profile_match, file_name=files_day_PARALLEL, param_name=PARAM_NAMES_day_PARALLEL,
 						PROFILE_DATE=date_day_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
-						MoreArgs=list(day_method=TRUE))
+						MoreArgs=list(method="day"))
 
 ### find dark median outliers in day profiles
 all_param_names = unlist(lapply(DAY_MATCH[4,], `[[`, 1)) # extract the first element of each profile
@@ -334,6 +419,10 @@ g1_day = ggplot(na.omit(DAY_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, g
 	scale_color_viridis() +
 	#scale_y_continuous(limits=c(-1e-4, -2e-5)) +
 	facet_wrap(~PARAM_name, scale="free_y")
+
+###########################
+### Start of Ts fitting
+###########################
 
 fitted_coeff = NULL
 A_axis = rep(NA, 4)
@@ -388,34 +477,34 @@ g2_day = g1_day + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
 g3_day = g2_day + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
 
 
-all_match_380 = mcmapply(get_Ts_match, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
-							MoreArgs=list(path_to_netcdf=path_to_netcdf, PARAM_NAME="DOWN_IRRADIANCE380"))
+#all_match_380 = mcmapply(get_Ts_match, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
+#							MoreArgs=list(path_to_netcdf=path_to_netcdf, PARAM_NAME="DOWN_IRRADIANCE380"))
 
-plot_corr_380 <- function(n) {
-
-	corr = all_match_380[[n]]$PARAM - ( A_axis[2] + B_axis[2] * all_match_380[[n]]$Ts )
-
-	dataf3 = data.frame(IRR380=all_match_380[[n]]$PARAM, PRES=all_match_380[[n]]$PRES, corr=corr, Ts=all_match_380[[n]]$Ts)
-
-	g3 = ggplot(na.omit(dataf3), aes(x=IRR380, y=PRES)) +
-		geom_point() +
-		scale_x_continuous(trans="log10") +
-		scale_y_continuous(trans="reverse") +
-		geom_path(mapping=aes(x=corr, y=PRES), color="red")
-	
-	g3_1 = ggplot(na.omit(dataf3), aes(x=IRR380, y=PRES)) +
-		geom_point() +
-		scale_x_continuous(limits=c(-1e-4, 1e-4)) +
-		scale_y_continuous(trans="reverse") +
-		geom_path(mapping=aes(x=corr, y=PRES), color="red")
-
-	g4 = ggplot(na.omit(dataf3), aes(x=Ts, y=PRES)) +
-		geom_point() + 
-		scale_y_continuous(trans="reverse")
-
-	grid.arrange(g3_1, g3, g4, nrow=1)
-
-}
+#plot_corr_380 <- function(n) {
+#
+#	corr = all_match_380[[n]]$PARAM - ( A_axis[2] + B_axis[2] * all_match_380[[n]]$Ts )
+#
+#	dataf3 = data.frame(IRR380=all_match_380[[n]]$PARAM, PRES=all_match_380[[n]]$PRES, corr=corr, Ts=all_match_380[[n]]$Ts)
+#
+#	g3 = ggplot(na.omit(dataf3), aes(x=IRR380, y=PRES)) +
+#		geom_point() +
+#		scale_x_continuous(trans="log10") +
+#		scale_y_continuous(trans="reverse") +
+#		geom_path(mapping=aes(x=corr, y=PRES), color="red")
+#	
+#	g3_1 = ggplot(na.omit(dataf3), aes(x=IRR380, y=PRES)) +
+#		geom_point() +
+#		scale_x_continuous(limits=c(-1e-4, 1e-4)) +
+#		scale_y_continuous(trans="reverse") +
+#		geom_path(mapping=aes(x=corr, y=PRES), color="red")
+#
+#	g4 = ggplot(na.omit(dataf3), aes(x=Ts, y=PRES)) +
+#		geom_point() + 
+#		scale_y_continuous(trans="reverse")
+#
+#	grid.arrange(g3_1, g3, g4, nrow=1)
+#
+#}
 
 ####################################
 ### Apply correction to netcdf
