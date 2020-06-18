@@ -31,20 +31,20 @@ lon = index_ifremer$longitude #retrieve the longitude of all profiles as a vecto
 prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 
 
-WMO = "6901525"
+WMO = "6901492"
 
 profile_list = paste(path_to_netcdf, files[which(substr(prof_id,3,9)==WMO)], sep="")
 
 files_corr = files[which(substr(prof_id,3,9)==WMO & substr(prof_id,14,14)==".")]
 for (i in 1:length(files_corr)) {
 	path = unlist(strsplit(files_corr[i], "/"))
-	#files_corr[i] = paste(path[1], path[2], path[3], "radiometry_xing", path[4], sep="/")
-	files_corr[i] = paste(path[1], path[2], path[3], "radiometry_xing_day", path[4], sep="/")
+	files_corr[i] = paste(path[1], path[2], path[3], "radiometry_xing", path[4], sep="/")
+	#files_corr[i] = paste(path[1], path[2], path[3], "radiometry_xing_day", path[4], sep="/")
 }
 files_corr = paste(path_to_netcdf, files_corr, sep="")
 
 
-plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE) {
+plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE, logscale=TRUE) {
  
     filenc = nc_open(filename)
     
@@ -110,7 +110,6 @@ plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE) {
     	g1 = ggplot(dataf, aes(y=PRES, x=PAR, color=FLAG_PAR)) +
     	    geom_point() +
         	scale_y_reverse() +
-        	scale_x_log10() +
         	scale_color_manual(values=c(col_1, col_2, col_3, col_4), breaks=c("1", "2", "3", "4"), drop=FALSE) +
         	geom_label(
             	label=paste("Profile type :", dataf$typePAR), 
@@ -129,7 +128,6 @@ plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE) {
    		g2 = ggplot(dataf, aes(y=PRES, x=IRR_380, color=FLAG_380)) +
 	        geom_point() +
 	        scale_y_reverse() +
-	        scale_x_log10() +
 	        scale_color_manual(values=c(col_1, col_2, col_3, col_4), breaks=c("1", "2", "3", "4"), drop=FALSE) +
 	        geom_label(
 	            label=paste("Profile type :", dataf$type380), 
@@ -148,7 +146,6 @@ plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE) {
 	    g3 = ggplot(dataf, aes(y=PRES, x=IRR_412, color=FLAG_412)) +
 	        geom_point() +
 	        scale_y_reverse() +
-	        scale_x_log10() +
 	        scale_color_manual(values=c(col_1, col_2, col_3, col_4), breaks=c("1", "2", "3", "4"), drop=FALSE) +
 	        geom_label(
 	            label=paste("Profile type :", dataf$type412), 
@@ -167,7 +164,6 @@ plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE) {
 	    g4 = ggplot(dataf, aes(y=PRES, x=IRR_490, color=FLAG_490)) +
 	        geom_point() +
 	        scale_y_reverse() +
-	        scale_x_log10() +
 	        scale_color_manual(values=c(col_1, col_2, col_3, col_4), breaks=c("1", "2", "3", "4"), drop=FALSE) +
 	        geom_label(
 	   	        label=paste("Profile type :", dataf$type490), 
@@ -182,11 +178,23 @@ plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE) {
 	        ) +
 	        theme_bw() +
 	        theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
-    	
-		if (i == 1) {
-			gg5 = grid.arrange(g1, g2, g3, g4, nrow=1)
+		
+		if (logscale) {    	
+        	g1 = g1 + gscale_x_log10()
+        	g2 = g2 + gscale_x_log10()
+        	g3 = g3 + gscale_x_log10()
+        	g4 = g4 + gscale_x_log10()
 		} else {
-			gg5_adjusted = grid.arrange(g1, g2, g3, g4, nrow=1)
+			g1 = g1 + scale_x_continuous(limits=c(-1,1))
+			g2 = g2 + scale_x_continuous(limits=c(-1e-4,1e-4))
+			g3 = g3 + scale_x_continuous(limits=c(-1e-4,1e-4))
+			g4 = g4 + scale_x_continuous(limits=c(-1e-4,1e-4))
+		}
+
+		if (i == 1) {
+			gg5 = arrangeGrob(g1, g2, g3, g4, nrow=1)
+		} else {
+			gg5_adjusted = arrangeGrob(g1, g2, g3, g4, nrow=1)
 		}
 		}
 		
@@ -194,19 +202,19 @@ plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE) {
     
 
     if (str_sub(filename,-4,-4) == "D") {
-        plot_name = paste("radiometry_QC_", str_sub(filename, -15, -4), ".png", sep="")
+        plot_name = paste("radiometry_QC_", str_sub(filename, -15, -4), "_xing.png", sep="")
     } else {
-        plot_name = paste("radiometry_QC_", str_sub(filename, -14, -4), ".png", sep="")
+        plot_name = paste("radiometry_QC_", str_sub(filename, -14, -4), "_xing.png", sep="")
     }
 
 	if (do_plot) {
 		if (with_corr){
     		png(plot_name, width = 800, height = 800)
-    		grid.arrange(gg5, gg5_adjusted, nrow=2)
+    		plot(grid.arrange(gg5, gg5_adjusted, nrow=2))
     		dev.off()
 		} else {
     		png(plot_name, width = 800, height = 400)
-			grid.arrange(gg5)
+			plot(gg5)
     		dev.off()
 		}
 	}
@@ -217,11 +225,18 @@ plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE) {
 
 }
 
+#for (file_i in files_corr[260:length(files_corr)]) {
+#	apply_plot = plot_QC(file_i, with_corr=TRUE, do_plot=TRUE)
+#}
+#for (file_i in profile_list[250:270]) {
+#	apply_plot = plot_QC(file_i, with_corr=FALSE, do_plot=TRUE)
+#}
 
 num_cores = detectCores()
 M = mcmapply(plot_QC, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=FALSE, do_plot=FALSE))
 
-Mcorr = mcmapply(plot_QC, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=TRUE, do_plot=FALSE))
+#Mcorr = mcmapply(plot_QC, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=TRUE, do_plot=FALSE))
+Mcorr = mcmapply(plot_QC, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=TRUE, do_plot=TRUE, logscale=FALSE))
 
 A = t(array(unlist(M, use.names=FALSE), dim=c(4,length(M))))
 Acorr = t(array(unlist(Mcorr, use.names=FALSE), dim=c(4,length(M))))
@@ -269,3 +284,5 @@ for (n in 1:4) {
 
 
 #write_json(M, path="profile_types.json", auto_unbox=T, pretty=T, null="list")
+print("hey")
+quit()
