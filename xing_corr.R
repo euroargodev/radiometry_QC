@@ -36,7 +36,7 @@ prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 #WMO = "6901524"
 ##WMO = "6902827" # no nights ?
 #WMO = "6901494" #not enough drift points ?
-#WMO = "6901576"
+WMO = "6901576"
 #WMO = "6902735"
 #WMO = "6901473" # again drift data missing, maybe other sensor issues
 #WMO = "6901474" 
@@ -50,7 +50,7 @@ prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 #WMO = "6902906" # no drift data (code 290)
 #WMO = "6903551" # drift bizarre, très peu de variation de Ts, bad data ?
 #WMO = "7900561" # both methods work very well
-WMO = "6901492" # both good
+#WMO = "6901492" # both good
 #WMO = "6903025" # Xing great, new method fails like 6901658 because of deep light gradients
 
 
@@ -542,7 +542,7 @@ if (save_plots) {
 date_update = Sys.time()
 DATE = stri_datetime_format(date_update, format="uuuuMMddHHmmss", tz="UTC")
 
-corr_file <- function(file_name, path_to_netcdf, use_day=FALSE) {
+corr_file <- function(file_name, PROFILE_DATE, path_to_netcdf, use_day=FALSE) {
 
 	path_sep = unlist(strsplit(file_name, "/"))
 	if (use_day) {
@@ -559,10 +559,12 @@ corr_file <- function(file_name, path_to_netcdf, use_day=FALSE) {
 		
 		matchup = get_Ts_match(file_name=file_name, path_to_netcdf=path_to_netcdf, PARAM_NAME=param_name)
 		
+		param_undrifted = as.numeric( matchup$PARAM - fitted_coeff_drift[[param_name]][1] - fitted_coeff_drift[[param_name]][3] * PROFILE_DATE )
+		
 		if (use_day) {
-			corr = matchup$PARAM - ( fitted_coeff_day[[param_name]][1] + fitted_coeff_day[[param_name]][2] * matchup$Ts )
+			corr = param_undrifted - ( fitted_coeff_day[[param_name]][1] + fitted_coeff_day[[param_name]][2] * matchup$Ts )
 		} else {
-			corr = matchup$PARAM - ( fitted_coeff[[param_name]][1] + fitted_coeff[[param_name]][2] * matchup$Ts )
+			corr = param_undrifted - ( fitted_coeff[[param_name]][1] + fitted_coeff[[param_name]][2] * matchup$Ts )
 		}
 		
 		corr_error = 0.2*corr #TODO
@@ -583,8 +585,8 @@ corr_file <- function(file_name, path_to_netcdf, use_day=FALSE) {
 
 #corr_file(files_list[1], path_to_netcdf)
 
-#corr_all = mcmapply(corr_file, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
-#							MoreArgs=list(path_to_netcdf=path_to_netcdf, use_day=FALSE))
+corr_all = mcmapply(corr_file, file_name=files_list, PROFILE_DATE=date_list, mc.cores=n_cores, SIMPLIFY=FALSE,
+							MoreArgs=list(path_to_netcdf=path_to_netcdf, use_day=FALSE))
 
 
 
