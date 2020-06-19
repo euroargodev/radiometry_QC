@@ -31,7 +31,7 @@ lon = index_ifremer$longitude #retrieve the longitude of all profiles as a vecto
 prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 
 
-WMO = "6901492"
+WMO = "6901576"
 
 profile_list = paste(path_to_netcdf, files[which(substr(prof_id,3,9)==WMO)], sep="")
 
@@ -180,10 +180,10 @@ plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE, logscale=TRUE) {
 	        theme(legend.justification=c("right", "bottom"), legend.position=c(0.95,0.15))
 		
 		if (logscale) {    	
-        	g1 = g1 + gscale_x_log10()
-        	g2 = g2 + gscale_x_log10()
-        	g3 = g3 + gscale_x_log10()
-        	g4 = g4 + gscale_x_log10()
+        	g1 = g1 + scale_x_log10()
+        	g2 = g2 + scale_x_log10()
+        	g3 = g3 + scale_x_log10()
+        	g4 = g4 + scale_x_log10()
 		} else {
 			g1 = g1 + scale_x_continuous(limits=c(-1,1))
 			g2 = g2 + scale_x_continuous(limits=c(-1e-4,1e-4))
@@ -225,6 +225,91 @@ plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE, logscale=TRUE) {
 
 }
 
+plot_corr <- function(filename) {
+    filenc = nc_open(filename)
+    
+    STATION_PARAMETERS = ncvar_get(filenc, "STATION_PARAMETERS")
+    param_name = "DOWNWELLING_PAR"
+    id_param = grep(str_pad(param_name, 64, side="right"), STATION_PARAMETERS)
+    id_prof = arrayInd(id_param, dim(STATION_PARAMETERS))[2]
+    if (length(id_param)!=1) {
+        nc_close(filenc)
+        return(NULL)
+    }
+		
+	PRES = ncvar_get(filenc, "PRES")[,id_prof]
+    IRR_380 = ncvar_get(filenc, "DOWN_IRRADIANCE380")[,id_prof]
+    IRR_412 = ncvar_get(filenc, "DOWN_IRRADIANCE412")[,id_prof]
+    IRR_490 = ncvar_get(filenc, "DOWN_IRRADIANCE490")[,id_prof]
+    PAR = ncvar_get(filenc, "DOWNWELLING_PAR")[,id_prof]
+    IRR_380_ADJUSTED = ncvar_get(filenc, "DOWN_IRRADIANCE380_ADJUSTED")[,id_prof]
+    IRR_412_ADJUSTED = ncvar_get(filenc, "DOWN_IRRADIANCE412_ADJUSTED")[,id_prof]
+    IRR_490_ADJUSTED = ncvar_get(filenc, "DOWN_IRRADIANCE490_ADJUSTED")[,id_prof]
+    PAR_ADJUSTED = ncvar_get(filenc, "DOWNWELLING_PAR_ADJUSTED")[,id_prof]
+	
+	nc_close(filenc)
+
+	ggdata = data.frame(PRES, IRR_380, IRR_412, IRR_490, PAR, 
+						IRR_380_ADJUSTED, IRR_412_ADJUSTED, IRR_490_ADJUSTED, PAR_ADJUSTED)	
+
+    g1 = ggplot(ggdata, aes(x=PAR, y=PRES)) +
+        geom_point() +
+		geom_path(mapping = aes(x=PAR_ADJUSTED, y=PRES, color="red")) +
+       	scale_y_reverse() +
+       	theme_bw() +
+		theme(legend.position="none") 
+	
+    g2 = ggplot(ggdata, aes(x=IRR_380, y=PRES)) +
+        geom_point() +
+		geom_path(mapping = aes(x=IRR_380_ADJUSTED, y=PRES, color="red")) +
+       	scale_y_reverse() +
+       	theme_bw() + 
+		theme(legend.position="none") 
+    
+	g3 = ggplot(ggdata, aes(x=IRR_412, y=PRES)) +
+        geom_point() +
+		geom_path(mapping = aes(x=IRR_412_ADJUSTED, y=PRES, color="red")) +
+       	scale_y_reverse() +
+       	theme_bw() +
+		theme(legend.position="none") 
+    
+	g4 = ggplot(ggdata, aes(x=IRR_490, y=PRES)) +
+        geom_point() +
+		geom_path(mapping = aes(x=IRR_490_ADJUSTED, y=PRES, color="red")) +
+       	scale_y_reverse() +
+       	theme_bw() +
+		theme(legend.position="none") 
+
+    g1_log = g1 + scale_x_log10()
+  	g2_log = g2 + scale_x_log10()
+   	g3_log = g3 + scale_x_log10()
+  	g4_log = g4 + scale_x_log10()
+
+	g1_lin = g1 + scale_x_continuous(limits=1*c(-1,1))
+	g2_lin = g2 + scale_x_continuous(limits=2*c(-1e-4,1e-4))
+	g3_lin = g3 + scale_x_continuous(limits=3*c(-1e-4,1e-4))
+	g4_lin = g4 + scale_x_continuous(limits=4*c(-1e-4,1e-4))
+    
+    
+	if (str_sub(filename,-4,-4) == "D") {
+        plot_name = paste0("radiometry_with_corr_", str_sub(filename, -15, -4), ".png")
+    } else {
+        plot_name = paste0("radiometry_with_corr_", str_sub(filename, -14, -4), ".png")
+    }
+    
+	png(plot_name, width = 800, height = 800)
+	grid.arrange(g1_log, g2_log, g3_log, g4_log, g1_lin, g2_lin, g3_lin, g4_lin, nrow=2)
+    dev.off()
+	
+	return(0)
+}
+
+num_cores = detectCores()
+
+C = mcmapply(plot_corr, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE)
+
+stop()
+
 #for (file_i in files_corr[260:length(files_corr)]) {
 #	apply_plot = plot_QC(file_i, with_corr=TRUE, do_plot=TRUE)
 #}
@@ -232,11 +317,10 @@ plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE, logscale=TRUE) {
 #	apply_plot = plot_QC(file_i, with_corr=FALSE, do_plot=TRUE)
 #}
 
-num_cores = detectCores()
-M = mcmapply(plot_QC, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=FALSE, do_plot=FALSE))
+#M = mcmapply(plot_QC, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=FALSE, do_plot=FALSE))
 
 #Mcorr = mcmapply(plot_QC, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=TRUE, do_plot=FALSE))
-Mcorr = mcmapply(plot_QC, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=TRUE, do_plot=TRUE, logscale=FALSE))
+#Mcorr = mcmapply(plot_QC, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=TRUE, do_plot=TRUE, logscale=FALSE))
 
 A = t(array(unlist(M, use.names=FALSE), dim=c(4,length(M))))
 Acorr = t(array(unlist(Mcorr, use.names=FALSE), dim=c(4,length(M))))
@@ -285,4 +369,4 @@ for (n in 1:4) {
 
 #write_json(M, path="profile_types.json", auto_unbox=T, pretty=T, null="list")
 print("hey")
-quit()
+#quit()
