@@ -31,7 +31,7 @@ lon = index_ifremer$longitude #retrieve the longitude of all profiles as a vecto
 prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 
 
-WMO = "6901576"
+WMO = "7900561"
 
 profile_list = paste(path_to_netcdf, files[which(substr(prof_id,3,9)==WMO)], sep="")
 
@@ -225,7 +225,7 @@ plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE, logscale=TRUE) {
 
 }
 
-plot_corr <- function(filename) {
+plot_corr <- function(filename, pres_zoom=FALSE) {
     filenc = nc_open(filename)
     
     STATION_PARAMETERS = ncvar_get(filenc, "STATION_PARAMETERS")
@@ -251,32 +251,56 @@ plot_corr <- function(filename) {
 
 	ggdata = data.frame(PRES, IRR_380, IRR_412, IRR_490, PAR, 
 						IRR_380_ADJUSTED, IRR_412_ADJUSTED, IRR_490_ADJUSTED, PAR_ADJUSTED)	
+	
+	y_limits = NULL
+	if (pres_zoom) {
+		y_limits = c(250, 0)
+	}
 
+	x_limits = NULL
+
+	x_limits[[1]] = c(
+		min(min(PAR,na.rm=T), min(PAR_ADJUSTED, na.rm=T)), 
+		max(2*median(PAR, na.rm=T) - min(PAR,na.rm=T), 
+			2*median(PAR_ADJUSTED, na.rm=T) - min(PAR_ADJUSTED, na.rm=T)))
+	x_limits[[2]] = c(
+		min(min(IRR_380,na.rm=T), min(IRR_380_ADJUSTED, na.rm=T)), 
+		max(2*median(IRR_380, na.rm=T) - min(IRR_380, na.rm=T), 
+			2*median(IRR_380_ADJUSTED, na.rm=T) - min(IRR_380_ADJUSTED, na.rm=T)))
+	x_limits[[3]] = c(
+		min(min(IRR_412,na.rm=T), min(IRR_412_ADJUSTED, na.rm=T)), 
+		max(2*median(IRR_412, na.rm=T) - min(IRR_412,na.rm=T), 
+			2*median(IRR_412_ADJUSTED, na.rm=T) - min(IRR_412_ADJUSTED, na.rm=T)))
+	x_limits[[4]] = c(
+		min(min(IRR_490,na.rm=T), min(IRR_490_ADJUSTED, na.rm=T)), 
+		max(2*median(IRR_490, na.rm=T) - min(IRR_490,na.rm=T), 
+			2*median(IRR_490_ADJUSTED, na.rm=T) - min(IRR_490_ADJUSTED, na.rm=T)))
+	
     g1 = ggplot(ggdata, aes(x=PAR, y=PRES)) +
         geom_point() +
 		geom_path(mapping = aes(x=PAR_ADJUSTED, y=PRES, color="red")) +
-       	scale_y_reverse() +
+       	scale_y_reverse(limits=y_limits) +
        	theme_bw() +
 		theme(legend.position="none") 
 	
     g2 = ggplot(ggdata, aes(x=IRR_380, y=PRES)) +
         geom_point() +
 		geom_path(mapping = aes(x=IRR_380_ADJUSTED, y=PRES, color="red")) +
-       	scale_y_reverse() +
+       	scale_y_reverse(limits=y_limits) +
        	theme_bw() + 
 		theme(legend.position="none") 
     
 	g3 = ggplot(ggdata, aes(x=IRR_412, y=PRES)) +
         geom_point() +
 		geom_path(mapping = aes(x=IRR_412_ADJUSTED, y=PRES, color="red")) +
-       	scale_y_reverse() +
+       	scale_y_reverse(limits=y_limits) +
        	theme_bw() +
 		theme(legend.position="none") 
     
 	g4 = ggplot(ggdata, aes(x=IRR_490, y=PRES)) +
         geom_point() +
 		geom_path(mapping = aes(x=IRR_490_ADJUSTED, y=PRES, color="red")) +
-       	scale_y_reverse() +
+       	scale_y_reverse(limits=y_limits) +
        	theme_bw() +
 		theme(legend.position="none") 
 
@@ -285,10 +309,14 @@ plot_corr <- function(filename) {
    	g3_log = g3 + scale_x_log10()
   	g4_log = g4 + scale_x_log10()
 
-	g1_lin = g1 + scale_x_continuous(limits=1*c(-1,1))
-	g2_lin = g2 + scale_x_continuous(limits=2*c(-1e-4,1e-4))
-	g3_lin = g3 + scale_x_continuous(limits=3*c(-1e-4,1e-4))
-	g4_lin = g4 + scale_x_continuous(limits=4*c(-1e-4,1e-4))
+	#g1_lin = g1 + scale_x_continuous(limits=1*c(-1,1))
+	#g2_lin = g2 + scale_x_continuous(limits=2*c(-1e-4,1e-4))
+	#g3_lin = g3 + scale_x_continuous(limits=3*c(-1e-4,1e-4))
+	#g4_lin = g4 + scale_x_continuous(limits=4*c(-1e-4,1e-4))
+	g1_lin = g1 + scale_x_continuous(limits=x_limits[[1]])
+	g2_lin = g2 + scale_x_continuous(limits=x_limits[[2]])
+	g3_lin = g3 + scale_x_continuous(limits=x_limits[[3]])
+	g4_lin = g4 + scale_x_continuous(limits=x_limits[[4]])
     
     
 	if (str_sub(filename,-4,-4) == "D") {
@@ -307,6 +335,7 @@ plot_corr <- function(filename) {
 num_cores = detectCores()
 
 C = mcmapply(plot_corr, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE)
+#C = mcmapply(plot_corr, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(pres_zoom=TRUE))
 
 stop()
 
