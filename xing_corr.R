@@ -36,7 +36,7 @@ prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 #WMO = "6901524"
 ##WMO = "6902827" # no nights ?
 #WMO = "6901494" #not enough drift points ?
-WMO = "6901576"
+#WMO = "6901576"
 #WMO = "6902735"
 #WMO = "6901473" # again drift data missing, maybe other sensor issues
 #WMO = "6901474" 
@@ -49,7 +49,7 @@ WMO = "6901576"
 #WMO = "6902879" # no drift data (code 290)
 #WMO = "6902906" # no drift data (code 290)
 #WMO = "6903551" # drift bizarre, très peu de variation de Ts, bad data ?
-#WMO = "7900561" # both methods work very well
+WMO = "7900561" # both methods work very well
 #WMO = "6901492" # both good
 #WMO = "6903025" # Xing great, new method fails like 6901658 because of deep light gradients
 
@@ -145,16 +145,17 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 }
 
 
-get_profile_match <- function(file_name, param_name, PROFILE_DATE, method="night", drift_A=0, drift_C=0) {
+get_profile_match <- function(file_name, param_name, PROFILE_DATE, method="night", drift_A=0, drift_C=0, drift_Q=0) {
 
 	match = get_Ts_match(path_to_netcdf=path_to_netcdf, file_name=file_name, PARAM_NAME=param_name)
 
 	match_not_na = which(!is.na(match$PARAM) & !is.na(match$Ts))
+	
+	### correct for drift	
+	param_undrifted = as.numeric( match$PARAM - drift_A - drift_C * PROFILE_DATE 
+									- drift_Q * PROFILE_DATE^2)
 
 	if (method == "night") {	
-		
-		### correct for drift	
-		param_undrifted = as.numeric( match$PARAM - drift_A - drift_C * PROFILE_DATE )
 
 		MATCH = param_undrifted[match_not_na]
 		MATCH_Ts = match$Ts[match_not_na]
@@ -181,9 +182,6 @@ get_profile_match <- function(file_name, param_name, PROFILE_DATE, method="night
 				j_dark = which(signif)[1] - 1
 				subsel_dark = match_not_na[j_dark:length(match_not_na)]
 	
-				### correct for drift	
-				param_undrifted = as.numeric( match$PARAM - drift_A - drift_C * PROFILE_DATE )
-			
 				MATCH = param_undrifted[subsel_dark]
 				MATCH_Ts = match$Ts[subsel_dark]
 				MATCH_date = rep(PROFILE_DATE, length(subsel_dark))
@@ -298,10 +296,14 @@ for (param_name in PARAM_NAMES) {
 drift_dataf = drift_dataf_all[which(!is_drift_outlier),]
 #DRIFT_dataf = DRIFT_dataf_all[which(!is_DRIFT_outlier),]
 
+drift_dataf$PARAM_date_squared = (drift_dataf$PARAM_date)^2
+
+do_quadratic_fit = c(T, T, F, F)
 
 A_axis_drift = rep(NA, 4)
 B_axis_drift = rep(NA, 4)
 C_axis_drift = rep(NA, 4)
+Q_axis_drift = rep(0, 4)
 drift_dataf_5C = drift_dataf
 fitted_coeff_drift = NULL
 #A_axis_DRIFT = rep(NA, 4)
@@ -311,7 +313,13 @@ fitted_coeff_drift = NULL
 #fitted_coeff_DRIFT = NULL
 for (i in 1:4) {
 	subset_PAR = which(drift_dataf$PARAM_name == PARAM_NAMES[i])
-	fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=drift_dataf, subset=subset_PAR)
+	
+	if (do_quadratic_fit[i]) {
+		fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date + PARAM_date_squared, data=drift_dataf, subset=subset_PAR)
+		Q_axis_drift[i] = fit_ABC$coefficients[4]	
+	} else {
+		fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=drift_dataf, subset=subset_PAR)
+	}
 
 	fitted_coeff_drift[[PARAM_NAMES[i]]] = fit_ABC$coefficients
 	A_axis_drift[i] = fit_ABC$coefficients[1]	
@@ -332,11 +340,13 @@ for (i in 1:4) {
 	#DRIFT_dataf_5C$PARAM[subset_PAR] = DRIFT_dataf_5C$PARAM[subset_PAR] - B_axis_DRIFT[i] * (DRIFT_dataf_5C$PARAM_Ts[subset_PAR] - 5)
 }
 
-range_time = range(c(drift_dataf$PARAM_date, date_list))
+range_time = seq(min(c(drift_dataf$PARAM_date, date_list)), max(c(drift_dataf$PARAM_date, date_list)), length.out=100 )
 data_fit_drift = data.frame(
 	PARAM_name = rep(PARAM_NAMES, each=2),
 	x = rep(range_time, 4),
-	y = rep(A_axis_drift, each=2) + rep(C_axis_drift, each=2) * rep(range_time, 4) + rep(B_axis_drift, each=2) * 5
+	y = rep(A_axis_drift, each=2) + rep(B_axis_drift, each=2) * 5
+		+ rep(C_axis_drift, each=2) * rep(range_time, 4) 
+		+ rep(Q_axis_drift, each=2) * rep(range_time^2, 4) 
 )
 #data_fit_DRIFT = data.frame(
 #	PARAM_name = rep(PARAM_NAMES, each=2),
@@ -379,20 +389,23 @@ date_night_PARALLEL = rep(date_night, 4)
 PARAM_NAMES_night_PARALLEL = rep(PARAM_NAMES, each=length(files_night))
 A_axis_drift_night_PARALLEL = rep(A_axis_drift, each=length(files_night))
 C_axis_drift_night_PARALLEL = rep(C_axis_drift, each=length(files_night))
+Q_axis_drift_night_PARALLEL = rep(Q_axis_drift, each=length(files_night))
 
 files_day_PARALLEL = rep(files_day, 4)
 date_day_PARALLEL = rep(date_day, 4)
 PARAM_NAMES_day_PARALLEL = rep(PARAM_NAMES, each=length(files_day))
 A_axis_drift_day_PARALLEL = rep(A_axis_drift, each=length(files_day))
 C_axis_drift_day_PARALLEL = rep(C_axis_drift, each=length(files_day))
+Q_axis_drift_day_PARALLEL = rep(Q_axis_drift, each=length(files_day))
 
 NIGHT_MATCH = mcmapply(get_profile_match, file_name=files_night_PARALLEL, param_name=PARAM_NAMES_night_PARALLEL,
 						PROFILE_DATE=date_night_PARALLEL, drift_A=A_axis_drift_night_PARALLEL,
-						drift_C=C_axis_drift_night_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE)
+						drift_C=C_axis_drift_night_PARALLEL, drift_Q=Q_axis_drift_night_PARALLEL,
+						mc.cores=n_cores, USE.NAMES=FALSE)
 DAY_MATCH = mcmapply(get_profile_match, file_name=files_day_PARALLEL, param_name=PARAM_NAMES_day_PARALLEL,
 						PROFILE_DATE=date_day_PARALLEL, drift_A=A_axis_drift_day_PARALLEL,
-						drift_C=C_axis_drift_day_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
-						MoreArgs=list(method="day"))
+						drift_C=C_axis_drift_day_PARALLEL, drift_Q=Q_axis_drift_day_PARALLEL,
+						mc.cores=n_cores, USE.NAMES=FALSE, MoreArgs=list(method="day"))
 
 ### find dark median outliers in day profiles
 all_param_names = unlist(lapply(DAY_MATCH[4,], `[[`, 1)) # extract the first element of each profile
@@ -555,16 +568,17 @@ corr_file <- function(file_name, PROFILE_DATE, path_to_netcdf, use_day=FALSE) {
 	
 	system2("cp", c(full_file_name_in, full_file_name_out))
 
-	for (param_name in PARAM_NAMES) {
+	for (i in 1:length(PARAM_NAMES)) {
 		
-		matchup = get_Ts_match(file_name=file_name, path_to_netcdf=path_to_netcdf, PARAM_NAME=param_name)
+		matchup = get_Ts_match(file_name=file_name, path_to_netcdf=path_to_netcdf, PARAM_NAME=PARAM_NAMES[i])
 		
-		param_undrifted = as.numeric( matchup$PARAM - fitted_coeff_drift[[param_name]][1] - fitted_coeff_drift[[param_name]][3] * PROFILE_DATE )
+		param_undrifted = as.numeric( matchup$PARAM - A_axis_drift[i] - C_axis_drift[i] * PROFILE_DATE
+										- Q_axis_drift[i] * PROFILE_DATE^2 )
 		
 		if (use_day) {
-			corr = param_undrifted - ( fitted_coeff_day[[param_name]][1] + fitted_coeff_day[[param_name]][2] * matchup$Ts )
+			corr = param_undrifted - ( A_axis_day[i] + B_axis_day[i] * matchup$Ts )
 		} else {
-			corr = param_undrifted - ( fitted_coeff[[param_name]][1] + fitted_coeff[[param_name]][2] * matchup$Ts )
+			corr = param_undrifted - ( A_axis[i] + B_axis[i] * matchup$Ts )
 		}
 		
 		corr_error = 0.2*corr #TODO
@@ -575,7 +589,7 @@ corr_file <- function(file_name, PROFILE_DATE, path_to_netcdf, use_day=FALSE) {
 
 		fnc = nc_open(full_file_name_out, write=TRUE)
 		
-		ncvar_put(fnc, paste(param_name,"_ADJUSTED",sep=""), corr, start=c(1, matchup$id_prof), count=c(matchup$n_levels, 1))
+		ncvar_put(fnc, paste(PARAM_NAMES[i],"_ADJUSTED",sep=""), corr, start=c(1, matchup$id_prof), count=c(matchup$n_levels, 1))
 		
 		nc_close(fnc)
 	}
