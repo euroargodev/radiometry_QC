@@ -18,6 +18,7 @@ n_cores = detectCores()
 path_to_netcdf = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
 
 index_ifremer = read.table("~/Documents/radiometry/argo_bio-profile_index.txt", sep=",", header = T)
+index_greylist = read.csv("~/Documents/radiometry/ar_greylist.txt", sep=",")
 
 files = as.character(index_ifremer$file) #retrieve the path of each netcfd file
 ident = strsplit(files,"/") #separate the different roots of the files paths
@@ -38,7 +39,7 @@ prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 #WMO = "6901494" #not enough drift points ?
 #WMO = "6901576"
 #WMO = "6902735"
-#WMO = "6901473" # again drift data missing, maybe other sensor issues
+WMO = "6901473" # again drift data missing, maybe other sensor issues
 #WMO = "6901474" 
 #WMO = "6901495" # no drift data at all (code 290)
 #WMO = "6901584"
@@ -49,7 +50,7 @@ prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 #WMO = "6902879" # no drift data (code 290)
 #WMO = "6902906" # no drift data (code 290)
 #WMO = "6903551" # drift bizarre, très peu de variation de Ts, bad data ?
-WMO = "7900561" # both methods work very well
+#WMO = "7900561" # both methods work very well
 #WMO = "6901492" # both good
 #WMO = "6903025" # Xing great, new method fails like 6901658 because of deep light gradients
 
@@ -91,7 +92,21 @@ date_day = julian(date_day, origin=as.Date("1950-01-01", tz="UTC"))
 date_list = as.Date(as.character(prof_date_list), format="%Y%m%d%H%M%S", tz="UTC")
 date_list = julian(date_list, origin=as.Date("1950-01-01", tz="UTC"))
 
+greylist_starts = as.Date(as.character(index_greylist$START_DATE), format="%Y%m%d", tz="UTC")
+index_greylist$START_JULD = julian(greylist_starts, origin=as.Date("1950-01-01", tz="UTC"))
+
+greylist_ends = as.Date(as.character(index_greylist$END_DATE), format="%Y%m%d", tz="UTC")
+index_greylist$END_JULD = julian(greylist_ends, origin=as.Date("1950-01-01", tz="UTC"))
+index_greylist$END_JULD[which(is.na(index_greylist$END_JULD))] = Inf
+
 PARAM_NAMES = c("DOWNWELLING_PAR", "DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", "DOWN_IRRADIANCE490")
+
+is_greylisted(julian_day, WMO, PARAMETER_NAME) {
+	relevant_lines = which(index_greylist$PLATFORM_CODE==WMO & index_greylist$PARAMETER_NAME==PARAMETER_NAME)
+	greylisted_bool = any(index_greylist$START_JULD[relevant_lines] <= julian_day &
+						  index_greylist$END_JULD[relevant_lined] >= julian_day)
+	return(greylisted_bool)
+}
 
 get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
 	
@@ -599,8 +614,8 @@ corr_file <- function(file_name, PROFILE_DATE, path_to_netcdf, use_day=FALSE) {
 
 #corr_file(files_list[1], path_to_netcdf)
 
-corr_all = mcmapply(corr_file, file_name=files_list, PROFILE_DATE=date_list, mc.cores=n_cores, SIMPLIFY=FALSE,
-							MoreArgs=list(path_to_netcdf=path_to_netcdf, use_day=FALSE))
+#corr_all = mcmapply(corr_file, file_name=files_list, PROFILE_DATE=date_list, mc.cores=n_cores, SIMPLIFY=FALSE,
+#							MoreArgs=list(path_to_netcdf=path_to_netcdf, use_day=FALSE))
 
 
 
