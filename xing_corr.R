@@ -272,7 +272,7 @@ for (param_name in PARAM_NAMES) {
 nc_close(fnc_B)
 nc_close(fnc_C)
 
-drift_dataf_all = data.frame("PARAM"=DRIFT, "PARAM_Ts"=DRIFT_Ts, "PARAM_date"=DRIFT_date, "PARAM_name"=DRIFT_name)
+drift_dataf = data.frame("PARAM"=DRIFT, "PARAM_Ts"=DRIFT_Ts, "PARAM_date"=DRIFT_date, "PARAM_name"=DRIFT_name)
 
 #files_drift_PARALLEL = rep(files_list, 4)
 #date_drift_PARALLEL = rep(date_list, 4)
@@ -288,29 +288,29 @@ drift_dataf_all = data.frame("PARAM"=DRIFT, "PARAM_Ts"=DRIFT_Ts, "PARAM_date"=DR
 
 
 ### remove drift outliers
-is_drift_outlier = rep(NA, length(drift_dataf_all$PARAM))
-#is_DRIFT_outlier = rep(NA, length(drift_dataf_all$PARAM))
+is_drift_outlier = rep(NA, length(drift_dataf$PARAM))
+#is_DRIFT_outlier = rep(NA, length(drift_dataf$PARAM))
 for (param_name in PARAM_NAMES) {
-	param_axis = which(drift_dataf_all$PARAM_name == param_name)
+	param_axis = which(drift_dataf$PARAM_name == param_name)
 
-	quartiles = quantile(drift_dataf_all$PARAM[param_axis], probs=c(0.25, 0.75))
+	quartiles = quantile(drift_dataf$PARAM[param_axis], probs=c(0.25, 0.75))
 	margin = as.numeric(1.5 * (quartiles[2] - quartiles[1]))
 	outliers_lim = c(quartiles[1] - margin, quartiles[2] + margin)
 
-	is_drift_outlier[param_axis] = (drift_dataf_all$PARAM[param_axis] < outliers_lim[1] | drift_dataf_all$PARAM[param_axis] > outliers_lim[2])
+	is_drift_outlier[param_axis] = (drift_dataf$PARAM[param_axis] < outliers_lim[1] | drift_dataf$PARAM[param_axis] > outliers_lim[2])
 
 	### Alternative method
-	#param_axis = which(DRIFT_dataf_all$PARAM_name == param_name)
+	#param_axis = which(DRIFT_dataf$PARAM_name == param_name)
 
-	#quartiles = quantile(DRIFT_dataf_all$PARAM[param_axis], probs=c(0.25, 0.75))
+	#quartiles = quantile(DRIFT_dataf$PARAM[param_axis], probs=c(0.25, 0.75))
 	#margin = as.numeric(1.5 * (quartiles[2] - quartiles[1]))
 	#outliers_lim = c(quartiles[1] - margin, quartiles[2] + margin)
 
-	#is_DRIFT_outlier[param_axis] = (DRIFT_dataf_all$PARAM[param_axis] < outliers_lim[1] | DRIFT_dataf_all$PARAM[param_axis] > outliers_lim[2])
+	#is_DRIFT_outlier[param_axis] = (DRIFT_dataf$PARAM[param_axis] < outliers_lim[1] | DRIFT_dataf$PARAM[param_axis] > outliers_lim[2])
 }
 
-drift_dataf = drift_dataf_all[which(!is_drift_outlier),]
-#DRIFT_dataf = DRIFT_dataf_all[which(!is_DRIFT_outlier),]
+drift_dataf$is_drift_outlier = is_drift_outlier
+#DRIFT_dataf$is_drift_outlier = is_DRIFT_outlier
 
 drift_dataf$PARAM_date_squared = (drift_dataf$PARAM_date)^2
 
@@ -333,7 +333,8 @@ fitted_coeff_drift = NULL
 #fitted_coeff_DRIFT = NULL
 for (i in 1:4) {
 	subset_PAR = which(drift_dataf$PARAM_name == PARAM_NAMES[i])
-	subset_fit = which(drift_dataf$PARAM_name == PARAM_NAMES[i] & !drift_dataf$is_greylisted)
+	subset_fit = which(drift_dataf$PARAM_name == PARAM_NAMES[i] & !drift_dataf$is_greylisted
+						& !drift_dataf$is_drift_outlier)
 	
 	if (do_quadratic_fit[i]) {
 		fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date + PARAM_date_squared, data=drift_dataf, subset=subset_fit)
@@ -361,7 +362,9 @@ for (i in 1:4) {
 	#DRIFT_dataf_5C$PARAM[subset_PAR] = DRIFT_dataf_5C$PARAM[subset_PAR] - B_axis_DRIFT[i] * (DRIFT_dataf_5C$PARAM_Ts[subset_PAR] - 5)
 }
 
-range_time = seq(min(c(drift_dataf$PARAM_date, date_list)), max(c(drift_dataf$PARAM_date, date_list)), length.out=100 )
+good_drift = which(!drift_dataf$is_greylisted & !drift_dataf$is_drift_outlier)
+range_time = seq(min(c(drift_dataf$PARAM_date[good_drift], date_list)), max(c(drift_dataf$PARAM_date[good_drift], date_list)), length.out=100 )
+
 data_fit_drift = data.frame(
 	PARAM_name = rep(PARAM_NAMES, each=2),
 	x = rep(range_time, 4),
@@ -376,13 +379,14 @@ data_fit_drift = data.frame(
 #)
 
 g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
-	geom_point(data=function(x){x[!x$is_greylisted, ]}) +
-	geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
+	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
+	geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
 	scale_color_viridis() +
 	facet_wrap(~PARAM_name, scale="free_y")
 g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
-	geom_point(data=function(x){x[!x$is_greylisted, ]}) +
-	geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
+	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
+	geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
+	#geom_point(data=function(x){x[x$is_drift_outlier & !x$is_greylisted, ]}, color="red", shape=4) +
 	scale_color_viridis() +
 	facet_wrap(~PARAM_name, scale="free_y")
 #g6 = ggplot(na.omit(DRIFT_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
