@@ -3,6 +3,7 @@ library(stringr)
 library(stringi)
 library(parallel)
 library(ggplot2)
+library(plyr)
 library(viridis)
 library(gridExtra)
 library(gtools)
@@ -101,10 +102,10 @@ index_greylist$END_JULD[which(is.na(index_greylist$END_JULD))] = Inf
 
 PARAM_NAMES = c("DOWNWELLING_PAR", "DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", "DOWN_IRRADIANCE490")
 
-is_greylisted(julian_day, WMO, PARAMETER_NAME) {
+is_greylisted <- function(julian_day, WMO, PARAMETER_NAME) {
 	relevant_lines = which(index_greylist$PLATFORM_CODE==WMO & index_greylist$PARAMETER_NAME==PARAMETER_NAME)
 	greylisted_bool = any(index_greylist$START_JULD[relevant_lines] <= julian_day &
-						  index_greylist$END_JULD[relevant_lined] >= julian_day)
+						  index_greylist$END_JULD[relevant_lines] >= julian_day)
 	return(greylisted_bool)
 }
 
@@ -313,7 +314,11 @@ drift_dataf = drift_dataf_all[which(!is_drift_outlier),]
 
 drift_dataf$PARAM_date_squared = (drift_dataf$PARAM_date)^2
 
-do_quadratic_fit = c(T, T, F, F)
+drift_dataf$is_greylisted = mapply(is_greylisted, julian_day=drift_dataf$PARAM_date,
+								PARAMETER_NAME=as.character(drift_dataf$PARAM_name),
+								MoreArgs=list(WMO=WMO))
+
+do_quadratic_fit = c(F, F, F, F)
 
 A_axis_drift = rep(NA, 4)
 B_axis_drift = rep(NA, 4)
@@ -328,12 +333,13 @@ fitted_coeff_drift = NULL
 #fitted_coeff_DRIFT = NULL
 for (i in 1:4) {
 	subset_PAR = which(drift_dataf$PARAM_name == PARAM_NAMES[i])
+	subset_fit = which(drift_dataf$PARAM_name == PARAM_NAMES[i] & !drift_dataf$is_greylisted)
 	
 	if (do_quadratic_fit[i]) {
-		fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date + PARAM_date_squared, data=drift_dataf, subset=subset_PAR)
+		fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date + PARAM_date_squared, data=drift_dataf, subset=subset_fit)
 		Q_axis_drift[i] = fit_ABC$coefficients[4]	
 	} else {
-		fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=drift_dataf, subset=subset_PAR)
+		fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=drift_dataf, subset=subset_fit)
 	}
 
 	fitted_coeff_drift[[PARAM_NAMES[i]]] = fit_ABC$coefficients
@@ -370,11 +376,13 @@ data_fit_drift = data.frame(
 #)
 
 g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
-	geom_point() +
+	geom_point(data=function(x){x[!x$is_greylisted, ]}) +
+	geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
 	scale_color_viridis() +
 	facet_wrap(~PARAM_name, scale="free_y")
 g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
-	geom_point() +
+	geom_point(data=function(x){x[!x$is_greylisted, ]}) +
+	geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
 	scale_color_viridis() +
 	facet_wrap(~PARAM_name, scale="free_y")
 #g6 = ggplot(na.omit(DRIFT_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
