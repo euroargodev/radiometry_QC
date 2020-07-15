@@ -447,24 +447,36 @@ for (param_name in PARAM_NAMES) {
 
 	is_dark_outlier[param_axis] = (all_dark_median[param_axis] < outliers_lim[1] | all_dark_median[param_axis] > outliers_lim[2])
 }
+all_lengths = mapply(length, DAY_MATCH[1,])
+all_lengths = all_lengths[which(all_lengths != 0)]
+
+is_dark_outlier_full = rep(is_dark_outlier, times=all_lengths)
+
 
 PAR_dataf = data.frame("PARAM"=unlist(NIGHT_MATCH[1,]), "PARAM_Ts"=unlist(NIGHT_MATCH[2,]), 
 					   "PARAM_date"=unlist(NIGHT_MATCH[3,]), "PARAM_name"=unlist(NIGHT_MATCH[4,]))
-DAY_dataf = data.frame("PARAM"=unlist(DAY_MATCH[1,!is_dark_outlier]), 
-						"PARAM_Ts"=unlist(DAY_MATCH[2,!is_dark_outlier]), 
-					   	"PARAM_date"=unlist(DAY_MATCH[3,!is_dark_outlier]), 
-						"PARAM_name"=unlist(DAY_MATCH[4,!is_dark_outlier]))
+DAY_dataf = data.frame("PARAM"=unlist(DAY_MATCH[1,]), 
+						"PARAM_Ts"=unlist(DAY_MATCH[2,]), 
+					   	"PARAM_date"=unlist(DAY_MATCH[3,]), 
+						"PARAM_name"=unlist(DAY_MATCH[4,]),
+						"is_dark_outlier"=is_dark_outlier_full)
 
+PAR_dataf$is_greylisted = mapply(is_greylisted, julian_day=PAR_dataf$PARAM_date,
+								PARAMETER_NAME=as.character(PAR_dataf$PARAM_name),
+								MoreArgs=list(WMO=WMO))
+DAY_dataf$is_greylisted = mapply(is_greylisted, julian_day=DAY_dataf$PARAM_date,
+								PARAMETER_NAME=as.character(DAY_dataf$PARAM_name),
+								MoreArgs=list(WMO=WMO))
 
 g1 = ggplot(na.omit(PAR_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
-	geom_point() +
+	geom_point(data=function(x){x[!x$is_greylisted, ]}) +
+	#geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
 	scale_color_viridis() +
-	#scale_y_continuous(limits=c(-1e-4, -2e-5)) +
 	facet_wrap(~PARAM_name, scale="free_y")
 g1_day = ggplot(na.omit(DAY_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
-	geom_point() +
+	geom_point(data=function(x){x[!x$is_greylisted & !x$is_dark_outlier, ]}) +
+	#geom_point(data=function(x){x[x$is_greylisted & !x$is_dark_outlier, ]}, color="red") +
 	scale_color_viridis() +
-	#scale_y_continuous(limits=c(-1e-4, -2e-5)) +
 	facet_wrap(~PARAM_name, scale="free_y")
 
 ###########################
@@ -478,7 +490,8 @@ fitted_coeff_day = NULL
 A_axis_day = rep(NA, 4)
 B_axis_day = rep(NA, 4)
 for (i in 1:length(PARAM_NAMES)) {
-	subset_PAR = which(PAR_dataf$PARAM_name==PARAM_NAMES[i] & !is.na(PAR_dataf$PARAM_Ts))
+	subset_PAR = which(PAR_dataf$PARAM_name==PARAM_NAMES[i] & !is.na(PAR_dataf$PARAM_Ts)
+						& !PAR_dataf$is_greylisted)
 
 	fit_AB = lm(PARAM ~ PARAM_Ts, data=PAR_dataf, subset=subset_PAR) 
 
@@ -487,8 +500,11 @@ for (i in 1:length(PARAM_NAMES)) {
 	B_axis[i] = fit_AB$coefficients[[2]]
 
 	
-	fit_param = DAY_dataf$PARAM[which(DAY_dataf$PARAM_name == PARAM_NAMES[i])]
-	fit_Ts = DAY_dataf$PARAM_Ts[which(DAY_dataf$PARAM_name == PARAM_NAMES[i])]
+	subset_DAY = which(DAY_dataf$PARAM_name==PARAM_NAMES[i] & !is.na(DAY_dataf$PARAM_Ts)
+						& !DAY_dataf$is_greylisted & !DAY_dataf$is_dark_outlier)
+
+	fit_param = DAY_dataf$PARAM[subset_DAY]
+	fit_Ts = DAY_dataf$PARAM_Ts[subset_DAY]
 	
 	fit_param = fit_param[order(fit_Ts)]
 	fit_Ts = fit_Ts[order(fit_Ts)]
