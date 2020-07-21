@@ -3,6 +3,8 @@ library(ncdf4)
 library(stringr)
 library(parallel)
 library(ggplot2)
+library(gridExtra)
+library(gtools) # running
 
 n_cores = detectCores()
 
@@ -24,7 +26,14 @@ lon = index_ifremer$longitude #retrieve the longitude of all profiles as a vecto
 prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 
 
-WMO = "6901473"
+#WMO = "6901473"
+
+### Organelli et al
+#WMO = "6901437"
+#WMO = "6901510"
+#WMO = "6901439"
+#WMO = "6901511"
+WMO = "6901865"
 
 subset = which(substr(prof_id,3,9)==WMO)
 
@@ -109,29 +118,77 @@ extrap_Ed <- function(filename) {
     return(all_extrap_Ed)
 }
 
-Argo_Ed = mcmapply(extrap_Ed, profile_list, mc.cores=n_cores, USE.NAMES=FALSE)
+valid = which(!is.na(date_list) & !is.na(lon_list) & !is.na(lat_list) & !is.na(tu_list))
 
-GC_Ed = mcmapply(GreggCarder.f, jday=date_list, rlon=lon_list, rlat=lat_list, hr=tu_list, MoreArgs=list(lam.sel=c(380,412,490)), 
-                 mc.cores=n_cores, USE.NAMES=FALSE)[4,]
+Argo_Ed = mcmapply(extrap_Ed, profile_list[valid], mc.cores=n_cores, USE.NAMES=FALSE)
+
+GC_Ed = mcmapply(GreggCarder.f, jday=date_list[valid], rlon=lon_list[valid], rlat=lat_list[valid], 
+                 hr=tu_list[valid], MoreArgs=list(lam.sel=c(380,412,490)), mc.cores=n_cores, USE.NAMES=FALSE)[4,]
+
+
+
+Argo380 = unlist(Argo_Ed[1,])
+Argo412 = unlist(Argo_Ed[2,])
+Argo490 = unlist(Argo_Ed[3,])
+
+GC380 = unlist(lapply(GC_Ed, `[[`, 1))
+GC412 = unlist(lapply(GC_Ed, `[[`, 2))
+GC490 = unlist(lapply(GC_Ed, `[[`, 3))
+
+GC380[which(is.na(GC380))] = 0
+GC412[which(is.na(GC412))] = 0
+GC490[which(is.na(GC490))] = 0
+
+Argo380_bin = as.vector(running(Argo380, fun=max, width=7, pad=T, by=7))
+Argo412_bin = as.vector(running(Argo412, fun=max, width=7, pad=T, by=7))
+Argo490_bin = as.vector(running(Argo490, fun=max, width=7, pad=T, by=7))
+
+GC380_bin = as.vector(running(GC380, fun=max, width=7, pad=T, by=7))
+GC412_bin = as.vector(running(GC412, fun=max, width=7, pad=T, by=7))
+GC490_bin = as.vector(running(GC490, fun=max, width=7, pad=T, by=7))
+
+filter = T
+if (filter) {
+    Argo380 = as.vector(running(Argo380, fun=max, width=7, pad=T))
+    Argo412 = as.vector(running(Argo412, fun=max, width=7, pad=T))
+    Argo490 = as.vector(running(Argo490, fun=max, width=7, pad=T))
+    
+    GC380 = as.vector(running(GC380, fun=max, width=7, pad=T))
+    GC412 = as.vector(running(GC412, fun=max, width=7, pad=T))
+    GC490 = as.vector(running(GC490, fun=max, width=7, pad=T))
+}
+
+
 
 PARAM_NAMES = c("DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", "DOWN_IRRADIANCE490")
 
-ggdata = data.frame("IRR" = c(unlist(Argo_Ed[1,]), unlist(Argo_Ed[2,]), unlist(Argo_Ed[3,]),
-                              unlist(lapply(GC_Ed, `[[`, 1)), unlist(lapply(GC_Ed, `[[`, 2)), unlist(lapply(GC_Ed, `[[`, 3)),
-                              (unlist(lapply(GC_Ed, `[[`, 1)) - unlist(Argo_Ed[1,])), 
-                              (unlist(lapply(GC_Ed, `[[`, 2)) - unlist(Argo_Ed[2,])), 
-                              (unlist(lapply(GC_Ed, `[[`, 3)) - unlist(Argo_Ed[3,]))),
-                    "source" = rep(c("Argo","Model","Bias"), each=3*length(profile_list)),
-                    "PARAM" = rep(rep(PARAM_NAMES, each=length(profile_list)), 3),
-                    "date" = rep(date_list, 9)
+ggdata = data.frame("IRR" = c(Argo380, Argo412, Argo490,
+                              GC380, GC412, GC490),
+                    "source" = rep(c("Argo","Model"), each=3*length(valid)),
+                    "PARAM" = rep(rep(PARAM_NAMES, each=length(valid)), 2),
+                    "date" = rep(date_list[valid], 6)
                     )
+ggbias = data.frame("IRR" = c(GC380_bin - Argo380_bin, 
+                              GC412_bin - Argo412_bin, 
+                              GC490_bin - Argo490_bin),
+                    "source" = rep("Bias", each=3*length(valid)),
+                    "PARAM" = rep(PARAM_NAMES, each=length(valid)),
+                    "date" = rep(date_list[valid], 3)
+)
 
-g1 = ggplot(na.omit(ggdata), aes(x=date, y=IRR, color=source, group=PARAM)) +
-    geom_point() + #data=function(x){x[!x$is_greylisted, ]}) +
-    #geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
-    #scale_color_viridis() +
-    #scale_y_continuous(
-    #    name = "First Axis",
-    #    sec.axis = sec_axis(~./2.5, name="Second Axis")
-    #) +
-    facet_wrap(~PARAM, ncol=1)#, scale="free_y")
+
+g1 = ggplot(ggdata, aes(x=date, y=IRR, color=source, group=source)) +
+    geom_line() +
+    scale_color_manual(values=c("black", "red")) +
+    theme_bw() +
+    theme(legend.position = "none") +
+    facet_wrap(~PARAM, nrow=1)#, scale="free_y")
+g2 = ggplot(ggbias, aes(x=date, y=IRR, color=source, group=source)) +
+    geom_point(shape=15) +
+    scale_color_manual(values=c("blue")) +
+    theme_bw() +
+    theme(legend.position = "none") +
+    facet_wrap(~PARAM, nrow=1)#, scale="free_y")
+
+g3 = grid.arrange(g1, g2, nrow=2)
+
