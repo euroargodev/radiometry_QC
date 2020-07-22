@@ -1,6 +1,6 @@
 require(nortest)# Lilliefors test of normality
 
-RT_QC_radiometry <- function(PRES,IRR_380,IRR_412,IRR_490,PAR) {
+RT_QC_radiometry <- function(PRES, IRR_380, IRR_412, IRR_490, PAR) {
 
     ############################################################################################################################################################################################
     # This program was designed in order to perform the RT-QC for radiometry profiles acquired by Bio-Argo floats
@@ -15,14 +15,14 @@ RT_QC_radiometry <- function(PRES,IRR_380,IRR_412,IRR_490,PAR) {
     # 
     #############################################################################################################################################################################################
 
-    TAB=cbind(PRES,IRR_380,IRR_412, IRR_490, PAR) #create a matrix using all the parameters 
-    TAB=as.data.frame(TAB) #convert TAB in dataframe
+    TAB = cbind(PRES, IRR_380,IRR_412, IRR_490, PAR) #create a matrix using all the parameters 
+    TAB = as.data.frame(TAB) #convert TAB in dataframe
   
     ##################################################
     #### 3. Create a data.frame without NA 
     ##################################################
-    TAB_complete=TAB[complete.cases(TAB$IRR_380),]#to remove rows with NA. Same rows for any irradiance and PAR measurements.
-    TAB_NA=TAB[!complete.cases(TAB$IRR_380),] #dataframe with only NA values. Useful when assignin flags.
+    TAB_complete = TAB[complete.cases(TAB$IRR_380),]#to remove rows with NA. Same rows for any irradiance and PAR measurements.
+    TAB_NA = TAB[!complete.cases(TAB$IRR_380),] #dataframe with only NA values. Useful when assignin flags.
   
     ##################################################
     #### 4. STEP 1: DARK IDENTIFICATION 
@@ -145,23 +145,19 @@ RT_QC_radiometry <- function(PRES,IRR_380,IRR_412,IRR_490,PAR) {
         #flag4_param_ADJ = pol_param_3$residuals < (mean_param_3 - lim_sd3_param_3) | 
         #                  pol_param_3$residuals > (mean_param_3 + lim_sd3_param_3) #FLAG 4 points in STEP 4b
         #pts.flag4_param_ADJ=which(flag4_param_ADJ==T) #FLAG 4 points in STEP 4b
+        
         rsquared_param_3 = summary(pol_param_3)$r.squared
                     
         if (rsquared_param_2 <= thresholds[[param_name]][1]) { #FLAG ASSIGNMENT CORRESPONDING TO STEP 3
             fill_flag_3(param_name)
             typeAll[[param_name]] = "3" #catherine
-        } else if (rsquared_param_2 > thresholds[[param_name]][1] & rsquared_param_2 <= thresholds[[param_name]][2]) { 
+            next
+        }
+        if (rsquared_param_2 > thresholds[[param_name]][1] & rsquared_param_2 <= thresholds[[param_name]][2]) { 
             #FLAG ASSIGNMENT CORRESPONDING TO STEP 3
             FLAG_param_QC = rep("3", length(TAB_complete[[param_name]])) #stop analysis #dark values are still assigned to FLAG 3 from STEP 1
             FLAG_param_QC[pts.flag3_param] = "3" #FLAG 3 pts assigned in STEP 2a #no-useful command but it is kept just to remind the STEP of assignement
             #FLAG_param_QC[pts.flag4_param]="3" #FLAG 4 pts assigned in STEP 2a
-            
-            TAB_complete[[ FLAG_NAMES[[param_name]] ]] = FLAG_param_QC   
-            TAB_NA[[ FLAG_NAMES[[param_name]] ]] = rep("NA", length(TAB_NA$PRES))
-                    
-            TAB_param = rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
-            newdata_All[[ FLAG_NAMES[[param_name]] ]] = TAB_param[order(as.numeric(row.names(TAB_param))),][[ FLAG_NAMES[[param_name]] ]]  #to sort for the initial row order, NA included
-            # newdata_param$FLAG_param_QC is the right string of characters to be included in NETCDF file
                         
             typeAll[[param_name]] = "3" #catherine
         } else if (rsquared_param_2 > thresholds[[param_name]][2] & rsquared_param_2 <= thresholds[[param_name]][3]) { #begin of STEP 4a: TYPE2_FLAG ASSIGNEMENT
@@ -171,13 +167,6 @@ RT_QC_radiometry <- function(PRES,IRR_380,IRR_412,IRR_490,PAR) {
             #FLAG_param_QC[pts.flag4_param] = "3" #FLAG 4 assigned in STEP 2a
             FLAG_param_QC[no.cloudy_param[pts.flag3_param_ADJ]] = "3" #FLAG 3 assigned in STEP 4a
             #FLAG_param_QC[no.cloudy_param[pts.flag4_param_ADJ]] = "3" #FLAG 4 assigned in STEP 4a
-                
-            TAB_complete[[ FLAG_NAMES[[param_name]] ]] = FLAG_param_QC
-            TAB_NA[[ FLAG_NAMES[[param_name]] ]] = rep("NA", length(TAB_NA$PRES))
-                    
-            TAB_param = rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
-            newdata_All[[ FLAG_NAMES[[param_name]] ]] = TAB_param[order(as.numeric(row.names(TAB_param))),][[ FLAG_NAMES[[param_name]] ]]  #to sort for the initial row order, NA included
-            # newdata_param$FLAG_param_QC is the right string of characters to be included in NETCDF file
                         
             typeAll[[param_name]] = "2" #catherine
         } else { #begin of STEP 4b : TYPE1_FLAG ASSIGNEMENT
@@ -188,23 +177,21 @@ RT_QC_radiometry <- function(PRES,IRR_380,IRR_412,IRR_490,PAR) {
             FLAG_param_QC[no.cloudy_param[pts.flag2_param_ADJ]] = "2" #FLAG 2 assigned in STEP 4b
             FLAG_param_QC[no.cloudy_param[pts.flag3_param_ADJ]] = "3" #FLAG 3 assigned in STEP 4b
             #FLAG_param_QC[no.cloudy_param[pts.flag4_param_ADJ]] = "3" #FLAG 4 assigned in STEP 4b
-                        
-            TAB_complete[[ FLAG_NAMES[[param_name]] ]] = FLAG_param_QC   
-            TAB_NA[[ FLAG_NAMES[[param_name]] ]] = rep("NA", length(TAB_NA$PRES))
-                    
-            TAB_param = rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
-            newdata_All[[ FLAG_NAMES[[param_name]] ]] = TAB_param[order(as.numeric(row.names(TAB_param))),][[ FLAG_NAMES[[param_name]] ]]  #to sort for the initial row order, NA included
-            # newdata_param$FLAG_param_QC is the right string of characters to be included in NETCDF file
-                        
+          
             typeAll[[param_name]] = "1" #catherine
         }
+        
+        TAB_complete[[ FLAG_NAMES[[param_name]] ]] = FLAG_param_QC   
+        TAB_NA[[ FLAG_NAMES[[param_name]] ]] = rep("NA", length(TAB_NA$PRES))
+        
+        TAB_param = rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
+        newdata_All[[ FLAG_NAMES[[param_name]] ]] = TAB_param[order(as.numeric(row.names(TAB_param))),][[ FLAG_NAMES[[param_name]] ]]  #to sort for the initial row order, NA included
+        # newdata_All[[ FLAG_NAMES[[param_name]] ]] is the right string of characters to be included in NETCDF file
     }
-
 
     return(list("FLAG_380"=newdata_All$FLAG_380_QC, "FLAG_412"=newdata_All$FLAG_412_QC, "FLAG_490"=newdata_All$FLAG_490_QC, 
                 "FLAG_PAR"=newdata_All$FLAG_PAR_QC, "type380"=typeAll[["IRR_380"]], "type412"=typeAll[["IRR_412"]], 
                 "type490"=typeAll[["IRR_490"]], "typePAR"=typeAll[["PAR"]]))
-
 }
   
 #### THE END ####  
