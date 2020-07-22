@@ -32,6 +32,24 @@ RT_QC_radiometry <- function(PRES,IRR_380,IRR_412,IRR_490,PAR) {
     ##################################################
   
     PARAM_NAMES = c("IRR_380", "IRR_412", "IRR_490", "PAR")
+    FLAG_NAMES = list("IRR_380"="FLAG_380_QC", "IRR_412"="FLAG_412_QC", "IRR_490"="FLAG_490_QC", "PAR"="FLAG_PAR_QC")
+    
+    typeAll = NULL
+    newdata_All = NULL
+    
+    fill_flag_3 <- function(param_name) {
+        
+        ### method to fill a parameter flag axis with "3" and flag the profile as "3" as well
+        
+        FLAG_param_QC = rep("3", length(TAB_complete[[param_name]])) #ASSIGNEMENT CORRESPONDING to STEP 3
+        TAB_complete[[ FLAG_NAMES[[param_name]] ]] <<- FLAG_param_QC
+        TAB_NA[[ FLAG_NAMES[[param_name]] ]] <<- rep("NA", length(TAB_NA$PRES))
+        
+        TAB_param = rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
+        newdata_All[[ FLAG_NAMES[[param_name]] ]] <<- TAB_param[order(as.numeric(row.names(TAB_380))),][[ FLAG_NAMES[[param_name]] ]]  #to sort for the initial row order, NA included
+        
+        typeAll[[param_name]] <<- "3" #catherine
+    }
   
     #### 4.A Lilliefors Test for detecting lowest good irradiance measurement
     # alfa selected at 0.01
@@ -48,136 +66,56 @@ RT_QC_radiometry <- function(PRES,IRR_380,IRR_412,IRR_490,PAR) {
     limAll = NULL
     for (param_name in PARAM_NAMES) {
         i_param = which(abs(Lilliefors_All[[param_name]]) > 0.01)
-        limAll[[param_name]] = i_param[1] -1
+        limAll[[param_name]] = i_param[1] - 1
     }
+    
+    
 
-    lim380=i_380[1]-1
-    lim412=i_412[1]-1
-    lim490=i_490[1]-1
-    limPAR=i_PAR[1]-1
+    #### 4.B Check for negative values
+    for (param_name in PARAM_NAMES) {
+        if (!is.na(limAll[[param_name]])) { ### There should be no way lim is NA ??
+            
+            neg_param = which(TAB_complete[[param_name]][ 1:limAll[[param_name]] ] <= 0)
+            if (length(neg_380) != 0) {
+                limAll[[param_name]] = length(TAB_complete[[param_name]][ 1:neg_param[1] ]) - 1
+            }
+            
+        } else {
+            
+            fill_flag_3(param_name)
+            
+        }
+        
+    }
+    
+    #### 4.C SD calculation for the removed part (Calculation just useful for statistics etc not for QC)
+    # dark_380=TAB_complete$IRR_380[(lim380_bis+1):length(TAB_complete$IRR_380)]
+    # sd_dark_380=sd(dark_380, na.rm=T)
+    # n_dark_380=length(dark_380)
+    # ave_dark_380=mean(dark_380, na.rm=T)
+    # CV_dark_380=(sd_dark_380/ave_dark_380)*100
+    # 
+    # dark_412=TAB_complete$IRR_412[(lim412_bis+1):length(TAB_complete$IRR_412)]
+    # sd_dark_412=sd(dark_412, na.rm=T)
+    # n_dark_412=length(dark_412)
+    # ave_dark_412=mean(dark_412, na.rm=T)
+    # CV_dark_412=(sd_dark_412/ave_dark_412)*100
+    # 
+    # dark_490=TAB_complete$IRR_490[(lim490_bis+1):length(TAB_complete$IRR_490)]
+    # sd_dark_490=sd(dark_490, na.rm=T)
+    # n_dark_490=length(dark_490)
+    # ave_dark_490=mean(dark_490, na.rm=T)
+    # CV_dark_490=(sd_dark_490/ave_dark_490)*100
+    # 
+    # dark_PAR=TAB_complete$PAR[(limPAR_bis+1):length(TAB_complete$PAR)]
+    # sd_dark_PAR=sd(dark_PAR, na.rm=T)
+    # n_dark_PAR=length(dark_PAR)
+    # ave_dark_PAR=mean(dark_PAR, na.rm=T)
+    # CV_dark_PAR=(sd_dark_PAR/ave_dark_PAR)*100
 
-#### 4.B Check for negative values
-if(!is.na(lim380)) {
-
-OK380=TRUE
-neg_380=which(TAB_complete$IRR_380[1:lim380]<=0)
-
-{
-  if(length(neg_380) !=0)
-    lim380_bis=length(TAB_complete$IRR_380[1:neg_380[1]])-1
-  else lim380_bis=lim380
-}
-
-} else {
-	# 380
-	OK380=FALSE 
-        FLAG_380_QC=rep("3", length(TAB_complete$IRR_380)) #ASSIGNEMENT CORRESPONDING to STEP 3
-        TAB_complete$FLAG_380_QC=FLAG_380_QC
-        TAB_NA$FLAG_380_QC=rep("NA", length(TAB_NA$PRES))
-        type380="3" #catherine
-        TAB_380=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
-        newdata_380 <- TAB_380[order(as.numeric(row.names(TAB_380))),]  #to sort for the initial row order, NA included
-        #str(newdata_380)
-}
-
-if(!is.na(lim412)) {
-
-OK412=TRUE
-neg_412=which(TAB_complete$IRR_412[1:lim412]<=0)
-
-{
-  if(length(neg_412) !=0)
-    lim412_bis=length(TAB_complete$IRR_412[1:neg_412[1]])-1
-  else lim412_bis=lim412
-}
-
-} else {	
-	# 412
-	OK412=FALSE
-        FLAG_412_QC=rep("3", length(TAB_complete$IRR_412)) #ASSIGNEMENT CORRESPONDING to STEP 3
-        TAB_complete$FLAG_412_QC=FLAG_412_QC
-        TAB_NA$FLAG_412_QC=rep("NA", length(TAB_NA$PRES))
-        type412="3" #catherine
-        TAB_412=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
-        newdata_412 <- TAB_412[order(as.numeric(row.names(TAB_412))),]  #to sort for the initial row order, NA included
-        #str(newdata_412)
-}
-
-if(!is.na(lim490)) {
-
-OK490=TRUE
-neg_490=which(TAB_complete$IRR_490[1:lim490]<=0)
-
-{
-  if(length(neg_490) !=0)
-    lim490_bis=length(TAB_complete$IRR_490[1:neg_490[1]])-1
-  else lim490_bis=lim490
-}
-
-} else {	
-	# 490
-	OK490=FALSE 
-        FLAG_490_QC=rep("3", length(TAB_complete$IRR_490)) #ASSIGNEMENT CORRESPONDING to STEP 3
-        TAB_complete$FLAG_490_QC=FLAG_490_QC
-        TAB_NA$FLAG_490_QC=rep("NA", length(TAB_NA$PRES))
-        type490="3" #catherine
-        TAB_490=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
-        newdata_490 <- TAB_490[order(as.numeric(row.names(TAB_490))),]  #to sort for the initial row order, NA included
-        #str(newdata_490)
-}
-
-if(!is.na(limPAR)) {
-
-OKPAR=TRUE
-neg_PAR=which(TAB_complete$PAR[1:limPAR]<=0)
-
-{
-  if(length(neg_PAR) !=0)
-    limPAR_bis=length(TAB_complete$PAR[1:neg_PAR[1]])-1
-  else limPAR_bis=limPAR
-} #logical test for negative PAR values 
-
-
-} else {
-	# PAR
-	OKPAR=FALSE
-        FLAG_PAR_QC=rep("3", length(TAB_complete$PAR)) #ASSIGNEMENT CORRESPONDING to STEP 3
-        TAB_complete$FLAG_PAR_QC=FLAG_PAR_QC
-        TAB_NA$FLAG_PAR_QC=rep("NA", length(TAB_NA$PRES))
-        typePAR="3" #catherine
-        TAB_PAR=rbind(TAB_complete, TAB_NA) #to create a string of FLAG with same length that NETCDF file
-        newdata_PAR <- TAB_PAR[order(as.numeric(row.names(TAB_PAR))),]  #to sort for the initial row order, NA included
-        #str(newdata_PAR)
-}
-
-#### 4.C SD calculation for the removed part (Calculation just useful for statistics etc not for QC)
-# dark_380=TAB_complete$IRR_380[(lim380_bis+1):length(TAB_complete$IRR_380)]
-# sd_dark_380=sd(dark_380, na.rm=T)
-# n_dark_380=length(dark_380)
-# ave_dark_380=mean(dark_380, na.rm=T)
-# CV_dark_380=(sd_dark_380/ave_dark_380)*100
-# 
-# dark_412=TAB_complete$IRR_412[(lim412_bis+1):length(TAB_complete$IRR_412)]
-# sd_dark_412=sd(dark_412, na.rm=T)
-# n_dark_412=length(dark_412)
-# ave_dark_412=mean(dark_412, na.rm=T)
-# CV_dark_412=(sd_dark_412/ave_dark_412)*100
-# 
-# dark_490=TAB_complete$IRR_490[(lim490_bis+1):length(TAB_complete$IRR_490)]
-# sd_dark_490=sd(dark_490, na.rm=T)
-# n_dark_490=length(dark_490)
-# ave_dark_490=mean(dark_490, na.rm=T)
-# CV_dark_490=(sd_dark_490/ave_dark_490)*100
-# 
-# dark_PAR=TAB_complete$PAR[(limPAR_bis+1):length(TAB_complete$PAR)]
-# sd_dark_PAR=sd(dark_PAR, na.rm=T)
-# n_dark_PAR=length(dark_PAR)
-# ave_dark_PAR=mean(dark_PAR, na.rm=T)
-# CV_dark_PAR=(sd_dark_PAR/ave_dark_PAR)*100
-
-#####################################################################################
-#### 5. STEP 2, STEP 3, STEP 4 and FLAG assignment for all radiometric channel
-######################################################################################
+    #####################################################################################
+    #### 5. STEP 2, STEP 3, STEP 4 and FLAG assignment for all radiometric channel
+    ######################################################################################
 
 #### 5.A _ CHANNEL: 380 nm ####
   # y is Irradiance at 380 nm (in log)
