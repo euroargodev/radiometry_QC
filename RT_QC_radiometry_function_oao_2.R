@@ -15,136 +15,46 @@ RT_QC_radiometry <- function(PRES,IRR_380,IRR_412,IRR_490,PAR) {
 # 
 #############################################################################################################################################################################################
 
-  TAB=cbind(PRES,IRR_380,IRR_412, IRR_490, PAR) #create a matrix using all the parameters 
-  TAB=as.data.frame(TAB) #convert TAB in dataframe
-  #head(TAB)
-  #str(TAB)
+    TAB=cbind(PRES,IRR_380,IRR_412, IRR_490, PAR) #create a matrix using all the parameters 
+    TAB=as.data.frame(TAB) #convert TAB in dataframe
+    #head(TAB)
+    #str(TAB)
   
-  ##################################################
-  #### 2. Replace failed aquisition with NA 
-  ##################################################
-  #for(s in 1:length(TAB$PRES)) {
-  #  if( TAB$IRR_380[s]==99999) {
-  #    TAB$IRR_380[s]=NA
-  #  }
-  #}  #for irradiance at 380 nm
+    ##################################################
+    #### 3. Create a data.frame without NA 
+    ##################################################
+    TAB_complete=TAB[complete.cases(TAB$IRR_380),]#to remove rows with NA. Same rows for any irradiance and PAR measurements.
+    #str(TAB_complete)
+    TAB_NA=TAB[!complete.cases(TAB$IRR_380),] #dataframe with only NA values. Useful when assignin flags.
   
-  #for(s in 1:length(TAB$PRES)) {
-  #  if(  TAB$IRR_412[s]==99999) {
-  #    TAB$IRR_412[s]=NA
-  #  }
-  #}  #for irradiance at 412 nm
+    ##################################################
+    #### 4. STEP 1: DARK IDENTIFICATION 
+    ##################################################
   
-  #for(s in 1:length(TAB$PRES)) {
-  #  if(  TAB$IRR_490[s]==99999) {
-  #    TAB$IRR_490[s]=NA
-  #  }
-  #}  #for irradiance at 490 nm
+    PARAM_NAMES = c("IRR_380", "IRR_412", "IRR_490", "PAR")
   
-  #for(s in 1:length(TAB$PRES)) {
-  #  if(TAB$PAR[s]==99999) {
-  #    TAB$PAR[s]=NA
-  #  }
-  #}  #for PAR
+    #### 4.A Lilliefors Test for detecting lowest good irradiance measurement
+    # alfa selected at 0.01
   
-  #head(TAB)
-  #str(TAB)
-  
-  ##################################################
-  #### 3. Create a data.frame without NA 
-  ##################################################
-  TAB_complete=TAB[complete.cases(TAB$IRR_380),]#to remove rows with NA. Same rows for any irradiance and PAR measurements.
-  #str(TAB_complete)
-  TAB_NA=TAB[!complete.cases(TAB$IRR_380),] #dataframe with only NA values. Useful when assignin flags.
-  
-  ##################################################
-  #### 4. STEP 1: DARK IDENTIFICATION 
-  ##################################################
-  
-  #### 4.A Lilliefors Test for detecting lowest good irradiance measurement
-  # alfa selected at 0.01
-  Lilliefors_380=vector()
-  Lilliefors_412=vector()
-  Lilliefors_490=vector()
-  Lilliefors_PAR=vector()
-  
-  for (l in 1 :(length(TAB_complete$IRR_380)-4)) {
-    Lillie_380=lillie.test(TAB_complete$IRR_380[l:length(TAB_complete$IRR_380)])
-    Lilliefors_380[l]=Lillie_380[2] #select p-value
-    Lillie_412=lillie.test(TAB_complete$IRR_412[l:length(TAB_complete$IRR_412)])
-    Lilliefors_412[l]=Lillie_412[2] #select p-value
-    Lillie_490=lillie.test(TAB_complete$IRR_490[l:length(TAB_complete$IRR_490)])
-    Lilliefors_490[l]=Lillie_490[2] #select p-value
-    Lillie_PAR=lillie.test(TAB_complete$PAR[l:length(TAB_complete$PAR)])
-    Lilliefors_PAR[l]=Lillie_PAR[2] #select p-value
-  }
-  
-  test_380=unlist(Lilliefors_380)
-  test2_380=as.vector(test_380)
-  test_412=unlist(Lilliefors_412)
-  test2_412=as.vector(test_412)
-  test_490=unlist(Lilliefors_490)
-  test2_490=as.vector(test_490)
-  test_PAR=unlist(Lilliefors_PAR)
-  test2_PAR=as.vector(test_PAR)
-  
-  significance_380=vector()
-  significance_412=vector()
-  significance_490=vector()
-  significance_PAR=vector()
-  
-  for (j in 1:length(test2_380)) {
-    tstat_380=test2_380[j] 
-{
-  if(abs(tstat_380)>0.01)# alfa=0.01 1%
-    tstat_380=TRUE
-  else tstat_380=FALSE
-}
-significance_380[j]=tstat_380
+    Lilliefors_All = NULL
+    for (param_name in PARAM_NAMES) {
+        Lilliefors_param = rep(NA, length(TAB_complete$IRR_380)-4)
+        for (l in 1 :(length(TAB_complete$IRR_380)-4)) {
+            Lilliefors_param[l] = lillie.test(TAB_complete[[param_name]][ l:length(TAB_complete[[param_name]]) ])[2] #select p-value
+        }
+        Lilliefors_All[[param_name]] = unlist(Lilliefors_param)
+    }
 
-tstat_412=test2_412[j] 
-{
-  if(abs(tstat_412)>0.01)# alfa=0.01 1%
-    tstat_412=TRUE
-  else tstat_412=FALSE
-}
-significance_412[j]=tstat_412
+    limAll = NULL
+    for (param_name in PARAM_NAMES) {
+        i_param = which(abs(Lilliefors_All[[param_name]]) > 0.01)
+        limAll[[param_name]] = i_param[1] -1
+    }
 
-tstat_490=test2_490[j] 
-{
-  if(abs(tstat_490)>0.01)# alfa=0.01 1%
-    tstat_490=TRUE
-  else tstat_490=FALSE
-}
-significance_490[j]=tstat_490
-
-tstat_PAR=test2_PAR[j] 
-{
-  if(abs(tstat_PAR)>0.01)# alfa=0.01 1%
-    tstat_PAR=TRUE
-  else tstat_PAR=FALSE
-}
-significance_PAR[j]=tstat_PAR
-
-  }
-
-significance_380
-significance_412
-significance_490
-significance_PAR
-
-i_380=which(significance_380==TRUE)
-i_412=which(significance_412==TRUE)
-i_490=which(significance_490==TRUE)
-i_PAR=which(significance_PAR==TRUE)
-
-lim380=i_380[1]-1
-lim412=i_412[1]-1
-lim490=i_490[1]-1
-limPAR=i_PAR[1]-1
-
-#print("lim380")
-#print(lim380)
+    lim380=i_380[1]-1
+    lim412=i_412[1]-1
+    lim490=i_490[1]-1
+    limPAR=i_PAR[1]-1
 
 #### 4.B Check for negative values
 if(!is.na(lim380)) {
