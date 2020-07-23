@@ -77,6 +77,7 @@ plot_QC <- function(filename, with_corr=FALSE, do_plot=TRUE, logscale=TRUE) {
     	PAR = ncvar_get(filenc, PAR_NAME[i])[,id_prof]
 
 		if (length(which(!is.na(IRR_380))) < 5) {
+		    nc_close(filenc)
 			return(list("type380"="0", "type412"="0", "type490"="0", "typePAR"="0"))
 		}   
  
