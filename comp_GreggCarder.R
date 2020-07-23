@@ -29,14 +29,14 @@ lon = index_ifremer$longitude #retrieve the longitude of all profiles as a vecto
 prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 
 
-WMO = "6901473"
+#WMO = "6901473"
 
 ### Organelli et al
 #WMO = "6901437"
 #WMO = "6901510"
 #WMO = "6901439"
 #WMO = "6901511"
-#WMO = "6901865"
+WMO = "6901865"
 
 subset = which(substr(prof_id,3,9)==WMO)
 
@@ -244,6 +244,7 @@ ggbias = data.frame("IRR" = c(GC380_bin - Argo380_bin,
 
 g1 = ggplot(ggdata, aes(x=date, y=IRR, color=source, group=source)) +
     geom_line() +
+    #geom_point() +
     scale_color_manual(values=c("black", "red")) +
     theme_bw() +
     xlab("Julian day") +
@@ -259,5 +260,8 @@ g2 = ggplot(ggbias, aes(x=date, y=IRR, color=source, group=source)) +
     theme(legend.position = "none") +
     facet_wrap(~PARAM, nrow=1)#, scale="free_y")
 
-g3 = grid.arrange(g1, g2, nrow=2)
+plot_name = paste0(WMO, "_GreggCarder_comp.png")
+png(filename=plot_name, width=600, height=400)
+grid.arrange(g1, g2, nrow=2)
+dev.off()
 
