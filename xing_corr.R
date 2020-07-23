@@ -35,7 +35,7 @@ prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 
 
 #WMO = "6901525"
-WMO = "6901524"
+#WMO = "6901524"
 ##WMO = "6902827" # no nights ?
 #WMO = "6901494" #not enough drift points ?
 #WMO = "6901576"
@@ -44,7 +44,7 @@ WMO = "6901524"
 #WMO = "6901474" 
 #WMO = "6901495" # no drift data at all (code 290)
 #WMO = "6901584"
-#WMO = "6901658" # Xing works very well, new method doesn't because light penetrates very deep
+WMO = "6901658" # Xing works very well, new method doesn't because light penetrates very deep
 #WMO = "6902547"
 #WMO = "6902742"
 #WMO = "6902828" # Xing works well, new method not quite on PAR
@@ -238,9 +238,18 @@ get_profile_match <- function(file_name, param_name, PROFILE_DATE, method="night
 	    
 	    run_sd = as.vector(running(match_param, fun=sd, width=10, pad=T))
 	    
-	    lim = max(which(run_sd >= 0.05))
+	    #lim_param = list("DOWN_IRRADIANCE380" = 5e-5,
+	    #                "DOWN_IRRADIANCE412" = 4e-5,
+	    #                 "DOWN_IRRADIANCE490" = 2e-5,
+	    #                 "DOWNWELLING_PAR" = 5e-2) # ??
+	    lim_param = list("DOWN_IRRADIANCE380" = 1e-4,
+	                     "DOWN_IRRADIANCE412" = 1e-4,
+	                     "DOWN_IRRADIANCE490" = 5e-5,
+	                     "DOWNWELLING_PAR" = 5e-2) # ??
 	    
-	    if (lim == length(match_param)) {
+	    lim = max(which(run_sd >= lim_param[[param_name]]))
+	    
+	    if (lim == length(match_param) | lim == -Inf) {
 	        return(list("MATCH"=NULL, "MATCH_Ts"=NULL, "MATCH_date"=NULL, "MATCH_name"=NULL))
 	    }	
 	    
@@ -309,6 +318,14 @@ DRIFT_dataf = data.frame("PARAM"=unlist(DRIFT_MATCH[1,]),
 						"PARAM_Ts"=unlist(DRIFT_MATCH[2,]), 
 					   	"PARAM_date"=unlist(DRIFT_MATCH[3,]), 
 						"PARAM_name"=unlist(DRIFT_MATCH[4,]))
+
+DRIFT_MATCH_2 = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
+                       PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
+                       MoreArgs=list(method="drift"))
+DRIFT_dataf_2 = data.frame("PARAM"=unlist(DRIFT_MATCH[1,]), 
+                         "PARAM_Ts"=unlist(DRIFT_MATCH[2,]), 
+                         "PARAM_date"=unlist(DRIFT_MATCH[3,]), 
+                         "PARAM_name"=unlist(DRIFT_MATCH[4,]))
 
 
 ### remove drift outliers
