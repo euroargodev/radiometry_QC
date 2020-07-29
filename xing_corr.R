@@ -15,8 +15,8 @@ source("~/Documents/radiometry/sensor_temp.R")
 
 n_cores = detectCores()
 
-path_to_netcdf = "/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
-#path_to_netcdf = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
+#path_to_netcdf = "/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
+path_to_netcdf = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
 
 index_ifremer = read.table("~/Documents/radiometry/argo_bio-profile_index.txt", sep=",", header = T)
 index_greylist = read.csv("~/Documents/radiometry/ar_greylist.txt", sep=",")
@@ -40,11 +40,11 @@ prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 #WMO = "6901494" #not enough drift points ?
 #WMO = "6901576"
 #WMO = "6902735"
-#WMO = "6901473" # again drift data missing, maybe other sensor issues
+WMO = "6901473" # again drift data missing, maybe other sensor issues
 #WMO = "6901474" 
 #WMO = "6901495" # no drift data at all (code 290)
 #WMO = "6901584"
-WMO = "6901658" # Xing works very well, new method doesn't because light penetrates very deep
+#WMO = "6901658" # Xing works very well, new method doesn't because light penetrates very deep
 #WMO = "6902547"
 #WMO = "6902742"
 #WMO = "6902828" # Xing works well, new method not quite on PAR
@@ -241,11 +241,19 @@ get_profile_match <- function(file_name, param_name, PROFILE_DATE, method="night
 	    #lim_param = list("DOWN_IRRADIANCE380" = 5e-5,
 	    #                "DOWN_IRRADIANCE412" = 4e-5,
 	    #                 "DOWN_IRRADIANCE490" = 2e-5,
-	    #                 "DOWNWELLING_PAR" = 5e-2) # ??
-	    lim_param = list("DOWN_IRRADIANCE380" = 1e-4,
-	                     "DOWN_IRRADIANCE412" = 1e-4,
-	                     "DOWN_IRRADIANCE490" = 5e-5,
-	                     "DOWNWELLING_PAR" = 5e-2) # ??
+	    #                 "DOWNWELLING_PAR" = 5e-2) # test 1
+	    #lim_param = list("DOWN_IRRADIANCE380" = 1e-4,
+	    #                 "DOWN_IRRADIANCE412" = 1e-4,
+	    #                 "DOWN_IRRADIANCE490" = 5e-5,
+	    #                 "DOWNWELLING_PAR" = 5e-2) # test 2
+	    #lim_param = list("DOWN_IRRADIANCE380" = 5e-5,
+	    #                 "DOWN_IRRADIANCE412" = 5e-5,
+	    #                 "DOWN_IRRADIANCE490" = 5e-5,
+	    #                 "DOWNWELLING_PAR" = 5e-2) # just orders of magnitude management
+	    lim_param = list("DOWN_IRRADIANCE380" = 3e-5,
+	                     "DOWN_IRRADIANCE412" = 7e-5,
+	                     "DOWN_IRRADIANCE490" = 7e-5,
+	                     "DOWNWELLING_PAR" = 5e-2) # accounting for typical proportionality
 	    
 	    lim = max(which(run_sd >= lim_param[[param_name]]))
 	    
@@ -260,6 +268,16 @@ get_profile_match <- function(file_name, param_name, PROFILE_DATE, method="night
 	    
 	    return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name))
 	    
+	}
+	
+	if (method=="test") {
+		MATCH = match$PARAM[match_not_na]
+		MATCH_Ts = match$Ts[match_not_na]
+		MATCH_date = rep(PROFILE_DATE, length(match_not_na))
+		MATCH_name = rep(param_name, length(match_not_na))
+
+		return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name))
+
 	}
 	
 }
@@ -319,13 +337,13 @@ DRIFT_dataf = data.frame("PARAM"=unlist(DRIFT_MATCH[1,]),
 					   	"PARAM_date"=unlist(DRIFT_MATCH[3,]), 
 						"PARAM_name"=unlist(DRIFT_MATCH[4,]))
 
-DRIFT_MATCH_2 = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
-                       PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
-                       MoreArgs=list(method="drift"))
-DRIFT_dataf_2 = data.frame("PARAM"=unlist(DRIFT_MATCH[1,]), 
-                         "PARAM_Ts"=unlist(DRIFT_MATCH[2,]), 
-                         "PARAM_date"=unlist(DRIFT_MATCH[3,]), 
-                         "PARAM_name"=unlist(DRIFT_MATCH[4,]))
+#DRIFT_MATCH_2 = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
+#                       PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
+#                       MoreArgs=list(method="test"))
+#DRIFT_dataf_2 = data.frame("PARAM"=unlist(DRIFT_MATCH_2[1,]), 
+#                         "PARAM_Ts"=unlist(DRIFT_MATCH_2[2,]), 
+#                         "PARAM_date"=unlist(DRIFT_MATCH_2[3,]), 
+#                         "PARAM_name"=unlist(DRIFT_MATCH_2[4,]))
 
 
 ### remove drift outliers
@@ -364,7 +382,7 @@ DRIFT_dataf$is_greylisted = mapply(is_greylisted, julian_day=DRIFT_dataf$PARAM_d
                                    MoreArgs=list(WMO=WMO))
 
 
-do_quadratic_fit = c(F, F, F, F)
+do_quadratic_fit = c(F, F, T, F)
 
 A_axis_drift = rep(NA, 4)
 B_axis_drift = rep(NA, 4)
@@ -399,8 +417,8 @@ for (i in 1:4) {
 
 	### Alternative drift
 	subset_PAR = which(DRIFT_dataf$PARAM_name == PARAM_NAMES[i])
-	subset_fit = which(DRIFT_dataf$PARAM_name == PARAM_NAMES[i] & !DRIFT_dataf$is_greylisted
-	                   & !DRIFT_dataf$is_drift_outlier)
+	subset_fit = which(DRIFT_dataf$PARAM_name == PARAM_NAMES[i] & !DRIFT_dataf$is_greylisted)
+	#                   & !DRIFT_dataf$is_drift_outlier)
 	
 	if (do_quadratic_fit[i]) {
 	    fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date + PARAM_date_squared, data=DRIFT_dataf, subset=subset_fit)
@@ -458,12 +476,12 @@ g7 = ggplot(na.omit(DRIFT_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts))
 	facet_wrap(~PARAM_name, scale="free_y")
 	
 #g4_fit = g4 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
-g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red") +
-				geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
+g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
+g5_fit_2 = g5_fit + geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
 
 #g6_fit = g6 + geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
-g7_fit = g7 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red") +
-				geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
+g7_fit = g7 + geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
+g7_fit_2 = g7_fit + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
 
 
 ###############################################
