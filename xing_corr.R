@@ -40,7 +40,7 @@ prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 #WMO = "6901494" #not enough drift points ?
 #WMO = "6901576"
 #WMO = "6902735"
-WMO = "6901473" # again drift data missing, maybe other sensor issues
+#WMO = "6901473" # again drift data missing, maybe other sensor issues
 #WMO = "6901474" 
 #WMO = "6901495" # no drift data at all (code 290)
 #WMO = "6901584"
@@ -51,7 +51,7 @@ WMO = "6901473" # again drift data missing, maybe other sensor issues
 #WMO = "6902879" # no drift data (code 290)
 #WMO = "6902906" # no drift data (code 290)
 #WMO = "6903551" # drift bizarre, très peu de variation de Ts, bad data ?
-#WMO = "7900561" # both methods work very well
+WMO = "7900561" # both methods work very well
 #WMO = "6901492" # both good
 #WMO = "6903025" # Xing great, new method fails like 6901658 because of deep light gradients
 
@@ -250,10 +250,14 @@ get_profile_match <- function(file_name, param_name, PROFILE_DATE, method="night
 	    #                 "DOWN_IRRADIANCE412" = 5e-5,
 	    #                 "DOWN_IRRADIANCE490" = 5e-5,
 	    #                 "DOWNWELLING_PAR" = 5e-2) # just orders of magnitude management
-	    lim_param = list("DOWN_IRRADIANCE380" = 3e-5,
-	                     "DOWN_IRRADIANCE412" = 7e-5,
-	                     "DOWN_IRRADIANCE490" = 7e-5,
-	                     "DOWNWELLING_PAR" = 5e-2) # accounting for typical proportionality
+	    #lim_param = list("DOWN_IRRADIANCE380" = 3e-5,
+	    #                 "DOWN_IRRADIANCE412" = 7e-5,
+	    #                 "DOWN_IRRADIANCE490" = 7e-5,
+	    #                 "DOWNWELLING_PAR" = 5e-2) # accounting for typical proportionality (6901658)
+	    lim_param = list("DOWN_IRRADIANCE380" = 1e-4,
+	                     "DOWN_IRRADIANCE412" = 1e-3,
+	                     "DOWN_IRRADIANCE490" = 1e-2,
+	                     "DOWNWELLING_PAR" = 5e-2) # accounting for typical proportionality (7900561)
 	    
 	    lim = max(which(run_sd >= lim_param[[param_name]]))
 	    
@@ -271,10 +275,10 @@ get_profile_match <- function(file_name, param_name, PROFILE_DATE, method="night
 	}
 	
 	if (method=="test") {
-		MATCH = match$PARAM[match_not_na]
-		MATCH_Ts = match$Ts[match_not_na]
-		MATCH_date = rep(PROFILE_DATE, length(match_not_na))
-		MATCH_name = rep(param_name, length(match_not_na))
+		MATCH = match$PARAM
+		MATCH_Ts = match$Ts
+		MATCH_date = rep(PROFILE_DATE, length(match$PARAM))
+		MATCH_name = rep(param_name, length(match$PARAM))
 
 		return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name))
 
@@ -337,13 +341,23 @@ DRIFT_dataf = data.frame("PARAM"=unlist(DRIFT_MATCH[1,]),
 					   	"PARAM_date"=unlist(DRIFT_MATCH[3,]), 
 						"PARAM_name"=unlist(DRIFT_MATCH[4,]))
 
-#DRIFT_MATCH_2 = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
-#                       PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
-#                       MoreArgs=list(method="test"))
-#DRIFT_dataf_2 = data.frame("PARAM"=unlist(DRIFT_MATCH_2[1,]), 
-#                         "PARAM_Ts"=unlist(DRIFT_MATCH_2[2,]), 
-#                         "PARAM_date"=unlist(DRIFT_MATCH_2[3,]), 
-#                         "PARAM_name"=unlist(DRIFT_MATCH_2[4,]))
+TEST_MATCH = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
+                       PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
+                       MoreArgs=list(method="test"))
+TEST_dataf = data.frame("PARAM"=unlist(TEST_MATCH[1,]), 
+                         "PARAM_Ts"=unlist(TEST_MATCH[2,]), 
+                         "PARAM_date"=unlist(TEST_MATCH[3,]), 
+                         "PARAM_name"=unlist(TEST_MATCH[4,]))
+
+T_PAR = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWNWELLING_PAR")]
+T_380 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE380")]
+T_412 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE412")]
+T_490 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE490")]
+
+nna = which(!is.na(T_PAR) & !is.na(T_380) & !is.na(T_412) & !is.na(T_490))
+
+#plot(T_PAR[nna], T_380[nna])
+#lm(T_380[nna] ~ 0 + T_PAR[nna])$coefficients
 
 
 ### remove drift outliers
@@ -382,7 +396,7 @@ DRIFT_dataf$is_greylisted = mapply(is_greylisted, julian_day=DRIFT_dataf$PARAM_d
                                    MoreArgs=list(WMO=WMO))
 
 
-do_quadratic_fit = c(F, F, T, F)
+do_quadratic_fit = c(T, T, F, F)
 
 A_axis_drift = rep(NA, 4)
 B_axis_drift = rep(NA, 4)
@@ -419,10 +433,11 @@ for (i in 1:4) {
 	subset_PAR = which(DRIFT_dataf$PARAM_name == PARAM_NAMES[i])
 	subset_fit = which(DRIFT_dataf$PARAM_name == PARAM_NAMES[i] & !DRIFT_dataf$is_greylisted)
 	#                   & !DRIFT_dataf$is_drift_outlier)
+	if (length(subset_fit) == 0) { next }	
 	
 	if (do_quadratic_fit[i]) {
 	    fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date + PARAM_date_squared, data=DRIFT_dataf, subset=subset_fit)
-	    Q_axis_drift[i] = fit_ABC$coefficients[4]	
+	    Q_axis_DRIFT[i] = fit_ABC$coefficients[4]	
 	} else {
 	    fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=DRIFT_dataf, subset=subset_fit)
 	}
