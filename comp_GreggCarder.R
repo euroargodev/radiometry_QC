@@ -9,8 +9,8 @@ library(latex2exp)
 
 n_cores = detectCores()
 
-path_to_netcdf = "/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
-#path_to_netcdf = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
+#path_to_netcdf = "/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
+path_to_netcdf = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/"
 
 index_ifremer = read.table("~/Documents/radiometry/argo_bio-profile_index.txt", sep=",", header = T)
 
@@ -29,14 +29,14 @@ lon = index_ifremer$longitude #retrieve the longitude of all profiles as a vecto
 prof_date = index_ifremer$date #retrieve the date of all profiles as a vector
 
 
-#WMO = "6901473"
+WMO = "6901473"
 
 ### Organelli et al
 #WMO = "6901437"
 #WMO = "6901510"
 #WMO = "6901439"
 #WMO = "6901511"
-WMO = "6901865"
+#WMO = "6901865"
 
 subset = which(substr(prof_id,3,9)==WMO)
 
@@ -148,10 +148,9 @@ get_profile_types <- function(filename) {
     
     nc_close(filenc)
     
-    if (length(which(!is.na(IRR_380))) < 5) {
-        nc_close(filenc)
-        return(return_na)
-    }   
+    #if (length(which(!is.na(IRR_380))) < 5) {
+    #    return(return_na)
+    #}   
     
     QC_flags = try(RT_QC_radiometry(PRES, IRR_380, IRR_412, IRR_490, PAR), silent=T)
     
@@ -186,14 +185,14 @@ GC412 = unlist(lapply(GC_Ed, `[[`, 2))
 GC490 = unlist(lapply(GC_Ed, `[[`, 3))
 
 ### GC returns NA when the sun is below the horizon, Ed should be 0
-GC380[which(is.na(GC380))] = 0
-GC412[which(is.na(GC412))] = 0
-GC490[which(is.na(GC490))] = 0
+#GC380[which(is.na(GC380))] = 0
+#GC412[which(is.na(GC412))] = 0
+#GC490[which(is.na(GC490))] = 0
 
 ### Select profiles of type 1
-good380 = which(type380 == "1")
-good412 = which(type412 == "1")
-good490 = which(type490 == "1")
+good380 = which(type380 == "1" & !is.na(GC380))
+good412 = which(type412 == "1" & !is.na(GC412))
+good490 = which(type490 == "1" & !is.na(GC490))
 
 Argo380 = Argo380[good380]
 Argo412 = Argo412[good412]
