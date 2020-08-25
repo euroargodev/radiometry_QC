@@ -46,14 +46,14 @@ index_greylist = read.csv(path_to_index_greylist, sep = ",")
 ### Treat optional arguments
 
 if (multi_core == "NA") {
-    num_cores = detectCores()
+    n_cores = detectCores()
 } else {
-    num_cores = as.numeric(multi_cores)
+    n_cores = as.numeric(multi_cores)
 }
 
 
 
 ### Compute and write delayed modes
-exit = main_RADM(WMO=WMO, index_ifremer=index_ifremer, index_greylist=index_greylist, path_to_netcdf=path_to_netcdf, n_cores=num_cores)
+exit = main_RADM(WMO=WMO, index_ifremer=index_ifremer, index_greylist=index_greylist, path_to_netcdf=path_to_netcdf, n_cores=n_cores)
 
 
