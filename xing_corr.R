@@ -9,6 +9,33 @@ require(gridExtra)
 require(gtools)
 require(nortest)
 
+my_menu <- function(choices, title=NULL) {
+    
+    choice_lines = paste0(as.character(1:length(choices)), 
+                          rep(": "),
+                          choices)
+    cat(title, "", choice_lines, sep="\n")
+    
+    repeat {
+        cat("\nSelection: ")
+        
+        if (interactive()) {
+            input <- as.numeric(readLines(stdin(), 1))
+        } else {
+            input <- as.numeric(readLines(file("stdin"), 1))
+        }
+
+        if ( !is.na(input) ){
+            if ( input>=0 & input<=length(choices) ) {
+                closeAllConnections()
+                return( input )
+            }
+        }
+        
+        cat("Choose one of the menu items, or 0 to exit")
+    }
+}
+
 main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_cores=detectCores()) {
 
 
@@ -45,8 +72,6 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     #WMO = "7900561" # both methods work very well
     #WMO = "6901492" # both good
     #WMO = "6903025" # Xing great, new method fails like 6901658 because of deep light gradients
-    
-    
     
     subset = which( wod==WMO & substr(prof_id,14,14)!="D" & !is.na(prof_date) & grepl("DOWNWELLING_PAR", variables))
     #subset = which( wod==WMO )
@@ -119,14 +144,18 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     drift_C = which(!is.na(temp) & code==290) #290 may not be the only correct code
     
     
-    DRIFT = NULL
-    DRIFT_Ts = NULL
-    DRIFT_date = NULL
-    DRIFT_name = NULL
+    DRIFT = numeric(0)
+    DRIFT_Ts = numeric(0)
+    DRIFT_date = numeric(0)
+    DRIFT_name = character(0)
     for (param_name in PARAM_NAMES) {
     	irr = ncvar_get(fnc_B, param_name)
     
     	drift_B = which(!is.na(irr) & code==290) #290 may not be the only correct code
+    	
+    	if ( length(drift_B)==0 ) {
+    	    next
+    	}
     
     	drift_match = rep(NA, length(drift_B))
     	for (i in 1:length(drift_B)) {
@@ -211,108 +240,159 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
                                        MoreArgs=list(WMO=WMO))
     
     
-    do_quadratic_fit = c(T, T, F, F)
-    
-    A_axis_drift = rep(NA, 4)
-    B_axis_drift = rep(NA, 4)
-    C_axis_drift = rep(NA, 4)
-    Q_axis_drift = rep(0, 4)
-    drift_dataf_5C = drift_dataf
-    fitted_coeff_drift = NULL
-    A_axis_DRIFT = rep(NA, 4)
-    B_axis_DRIFT = rep(NA, 4)
-    C_axis_DRIFT = rep(NA, 4)
-    DRIFT_dataf_5C = DRIFT_dataf
-    fitted_coeff_DRIFT = NULL
-    Q_axis_DRIFT = rep(0, 4)
-    for (i in 1:4) {
-    	subset_PAR = which(drift_dataf$PARAM_name == PARAM_NAMES[i])
-    	subset_fit = which(drift_dataf$PARAM_name == PARAM_NAMES[i] & !drift_dataf$is_greylisted
-    						& !drift_dataf$is_drift_outlier)
-    	
-    	if (do_quadratic_fit[i]) {
-    		fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date + PARAM_date_squared, data=drift_dataf, subset=subset_fit)
-    		Q_axis_drift[i] = fit_ABC$coefficients[4]	
-    	} else {
-    		fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=drift_dataf, subset=subset_fit)
-    	}
-    
-    	fitted_coeff_drift[[PARAM_NAMES[i]]] = fit_ABC$coefficients
-    	A_axis_drift[i] = fit_ABC$coefficients[1]	
-    	B_axis_drift[i] = fit_ABC$coefficients[2]	
-    	C_axis_drift[i] = fit_ABC$coefficients[3]	
-    
-    	drift_dataf_5C$PARAM[subset_PAR] = drift_dataf_5C$PARAM[subset_PAR] - B_axis_drift[i] * (drift_dataf_5C$PARAM_Ts[subset_PAR] - 5)
-    
-    	### Alternative drift
-    	subset_PAR = which(DRIFT_dataf$PARAM_name == PARAM_NAMES[i])
-    	subset_fit = which(DRIFT_dataf$PARAM_name == PARAM_NAMES[i] & !DRIFT_dataf$is_greylisted)
-    	#                   & !DRIFT_dataf$is_drift_outlier)
-    	if (length(subset_fit) == 0) { next }	
-    	
-    	if (do_quadratic_fit[i]) {
-    	    fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date + PARAM_date_squared, data=DRIFT_dataf, subset=subset_fit)
-    	    Q_axis_DRIFT[i] = fit_ABC$coefficients[4]	
-    	} else {
-    	    fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=DRIFT_dataf, subset=subset_fit)
-    	}
-    
-    	fitted_coeff_DRIFT[[PARAM_NAMES[i]]] = fit_ABC$coefficients
-    	A_axis_DRIFT[i] = fit_ABC$coefficients[1]	
-    	B_axis_DRIFT[i] = fit_ABC$coefficients[2]	
-    	C_axis_DRIFT[i] = fit_ABC$coefficients[3]	
-    
-    	DRIFT_dataf_5C$PARAM[subset_PAR] = DRIFT_dataf_5C$PARAM[subset_PAR] - B_axis_DRIFT[i] * (DRIFT_dataf_5C$PARAM_Ts[subset_PAR] - 5)
+    do_quadratic_fit = c(F, F, F, F)
+
+    repeat { # loop until the user finds an adequate fit or quits
+        A_axis_drift = rep(NA, 4)
+        B_axis_drift = rep(NA, 4)
+        C_axis_drift = rep(NA, 4)
+        Q_axis_drift = rep(0, 4)
+        drift_dataf_5C = drift_dataf
+        fitted_coeff_drift = NULL
+        A_axis_DRIFT = rep(NA, 4)
+        B_axis_DRIFT = rep(NA, 4)
+        C_axis_DRIFT = rep(NA, 4)
+        DRIFT_dataf_5C = DRIFT_dataf
+        fitted_coeff_DRIFT = NULL
+        Q_axis_DRIFT = rep(0, 4)
+        for (i in 1:4) {
+        	subset_PAR = which(drift_dataf$PARAM_name == PARAM_NAMES[i])
+        	subset_fit = which(drift_dataf$PARAM_name == PARAM_NAMES[i] & !drift_dataf$is_greylisted
+        						& !drift_dataf$is_drift_outlier)
+        	if ( length(subset_fit)==0 ) { next }
+        	
+        	if (do_quadratic_fit[i]) {
+        		fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date + PARAM_date_squared, data=drift_dataf, subset=subset_fit)
+        		Q_axis_drift[i] = fit_ABC$coefficients[4]	
+        	} else {
+        		fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=drift_dataf, subset=subset_fit)
+        	}
+        
+        	fitted_coeff_drift[[PARAM_NAMES[i]]] = fit_ABC$coefficients
+        	A_axis_drift[i] = fit_ABC$coefficients[1]	
+        	B_axis_drift[i] = fit_ABC$coefficients[2]	
+        	C_axis_drift[i] = fit_ABC$coefficients[3]	
+        
+        	drift_dataf_5C$PARAM[subset_PAR] = drift_dataf_5C$PARAM[subset_PAR] - B_axis_drift[i] * (drift_dataf_5C$PARAM_Ts[subset_PAR] - 5)
+        }
+        for (i in 1:4) {
+        	### Alternative drift
+        	subset_PAR = which(DRIFT_dataf$PARAM_name == PARAM_NAMES[i])
+        	subset_fit = which(DRIFT_dataf$PARAM_name == PARAM_NAMES[i] & !DRIFT_dataf$is_greylisted
+        	                   & !DRIFT_dataf$is_drift_outlier)
+        	if (length(subset_fit) == 0) { next }	
+        	
+        	if (do_quadratic_fit[i]) {
+        	    fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date + PARAM_date_squared, data=DRIFT_dataf, subset=subset_fit)
+        	    Q_axis_DRIFT[i] = fit_ABC$coefficients[4]	
+        	} else {
+        	    fit_ABC = lm(PARAM ~ PARAM_Ts + PARAM_date, data=DRIFT_dataf, subset=subset_fit)
+        	}
+        
+        	fitted_coeff_DRIFT[[PARAM_NAMES[i]]] = fit_ABC$coefficients
+        	A_axis_DRIFT[i] = fit_ABC$coefficients[1]	
+        	B_axis_DRIFT[i] = fit_ABC$coefficients[2]	
+        	C_axis_DRIFT[i] = fit_ABC$coefficients[3]	
+        
+        	DRIFT_dataf_5C$PARAM[subset_PAR] = DRIFT_dataf_5C$PARAM[subset_PAR] - B_axis_DRIFT[i] * (DRIFT_dataf_5C$PARAM_Ts[subset_PAR] - 5)
+        }
+        
+        good_drift = which(!drift_dataf$is_greylisted & !drift_dataf$is_drift_outlier)
+        range_time = seq(min(c(drift_dataf$PARAM_date[good_drift], date_list)), max(c(drift_dataf$PARAM_date[good_drift], date_list)), length.out=100 )
+        
+        data_fit_drift = data.frame(
+        	PARAM_name = rep(PARAM_NAMES, each=2),
+        	x = rep(range_time, 4),
+        	y = rep(A_axis_drift, each=2) + rep(B_axis_drift, each=2) * 5
+        		+ rep(C_axis_drift, each=2) * rep(range_time, 4) 
+        		+ rep(Q_axis_drift, each=2) * rep(range_time^2, 4) 
+        )
+        data_fit_DRIFT = data.frame(
+        	PARAM_name = rep(PARAM_NAMES, each=2),
+        	x = rep(range_time, 4),
+        	y = rep(A_axis_DRIFT, each=2) + rep(B_axis_DRIFT, each=2) * 5 
+        	    + rep(C_axis_DRIFT, each=2) * rep(range_time, 4) 
+        	    + rep(Q_axis_DRIFT, each=2) * rep(range_time^2, 4) 
+        )
+        
+        g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+        	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
+        	geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
+        	scale_color_viridis() +
+        	facet_wrap(~PARAM_name, scale="free_y")
+        g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+        	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
+        	geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
+        	#geom_point(data=function(x){x[x$is_drift_outlier & !x$is_greylisted, ]}, color="red", shape=4) +
+        	scale_color_viridis() +
+        	facet_wrap(~PARAM_name, scale="free_y")
+        g6 = ggplot(na.omit(DRIFT_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+        	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
+            geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
+        	scale_color_viridis() +
+        	facet_wrap(~PARAM_name, scale="free_y")
+        g7 = ggplot(na.omit(DRIFT_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+            geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
+            geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
+        	scale_color_viridis() +
+        	facet_wrap(~PARAM_name, scale="free_y")
+        	
+        #g4_fit = g4 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
+        g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
+        g5_fit_2 = g5_fit + geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
+        
+        #g6_fit = g6 + geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
+        g7_fit = g7 + geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
+        g7_fit_2 = g7_fit + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
+        
+        if ( dim(drift_dataf)[1] != 0 ) {
+            x11(xpos=0, ypos=0)
+            plot(g4)
+            x11(xpos=0, ypos=-1)
+            plot(g5_fit_2)
+        } else {
+            cat("No valid drift data points were found")
+        }
+        if ( dim(DRIFT_dataf)[1] != 0 ) {
+            x11(xpos=-1, ypos=0)
+            plot(g6)
+            x11(xpos=-1, ypos=-1)
+            plot(g7_fit_2)
+        } else {
+            cat("The alternative drift method found no valid dark data points")
+        }
+        
+        choice = my_menu(title = "What is the next step ? (0 to abandon and quit)",
+                         choices = c("Continue with correction from method A",
+                                     "Continue with correction from method B",
+                                     "Change to quadratic fits for some parameters"))
+        switch (choice+1,
+            return(0),
+            
+            {fitted_coeff_drift_corr = fitted_coeff_drift
+            A_axis_drift_corr = A_axis_drift
+            B_axis_drift_corr = B_axis_drift
+            C_axis_drift_corr = C_axis_drift
+            break},
+            
+            {fitted_coeff_drift_corr = fitted_coeff_DRIFT
+            A_axis_drift_corr = A_axis_DRIFT
+            B_axis_drift_corr = B_axis_DRIFT
+            C_axis_drift_corr = C_axis_DRIFT
+            break}
+        )
+        
+        do_quadratic_fit = c(F, F, F, F)
+        for (i in 1:4) {
+            choice = my_menu(title = paste("Use a quadratic fit for", PARAM_NAMES[i], "?"),
+                          choices = c("Yes", "No"))
+            do_quadratic_fit[i] = (choice == 1)
+        }
+        
+        while(dev.cur() > 1) {dev.off()}
     }
     
-    good_drift = which(!drift_dataf$is_greylisted & !drift_dataf$is_drift_outlier)
-    range_time = seq(min(c(drift_dataf$PARAM_date[good_drift], date_list)), max(c(drift_dataf$PARAM_date[good_drift], date_list)), length.out=100 )
-    
-    data_fit_drift = data.frame(
-    	PARAM_name = rep(PARAM_NAMES, each=2),
-    	x = rep(range_time, 4),
-    	y = rep(A_axis_drift, each=2) + rep(B_axis_drift, each=2) * 5
-    		+ rep(C_axis_drift, each=2) * rep(range_time, 4) 
-    		+ rep(Q_axis_drift, each=2) * rep(range_time^2, 4) 
-    )
-    data_fit_DRIFT = data.frame(
-    	PARAM_name = rep(PARAM_NAMES, each=2),
-    	x = rep(range_time, 4),
-    	y = rep(A_axis_DRIFT, each=2) + rep(B_axis_DRIFT, each=2) * 5 
-    	    + rep(C_axis_DRIFT, each=2) * rep(range_time, 4) 
-    	    + rep(Q_axis_DRIFT, each=2) * rep(range_time^2, 4) 
-    )
-    
-    g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
-    	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
-    	geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
-    	scale_color_viridis() +
-    	facet_wrap(~PARAM_name, scale="free_y")
-    g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
-    	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
-    	geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
-    	#geom_point(data=function(x){x[x$is_drift_outlier & !x$is_greylisted, ]}, color="red", shape=4) +
-    	scale_color_viridis() +
-    	facet_wrap(~PARAM_name, scale="free_y")
-    g6 = ggplot(na.omit(DRIFT_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
-    	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
-        geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
-    	scale_color_viridis() +
-    	facet_wrap(~PARAM_name, scale="free_y")
-    g7 = ggplot(na.omit(DRIFT_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
-        geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
-        geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
-    	scale_color_viridis() +
-    	facet_wrap(~PARAM_name, scale="free_y")
-    	
-    #g4_fit = g4 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
-    g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
-    g5_fit_2 = g5_fit + geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
-    
-    #g6_fit = g6 + geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
-    g7_fit = g7 + geom_line(data=data_fit_DRIFT, mapping=aes(x=x,y=y), color="black")
-    g7_fit_2 = g7_fit + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
-    
+    while(dev.cur() > 1) {dev.off()}
     
     ###############################################
     #### Start of radiometry/Ts matches extraction
