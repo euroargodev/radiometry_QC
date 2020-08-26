@@ -348,16 +348,40 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         if ( dim(drift_dataf)[1] != 0 ) {
             x11(xpos=0, ypos=0)
             plot(g4)
-            x11(xpos=0, ypos=-1)
+            x11(xpos=0, ypos=100)
+            plot(g5_fit)
+            x11(xpos=0, ypos=200)
             plot(g5_fit_2)
+            
+            plot_name=paste0(WMO, "_regr_drift_A.png")
+            png(filename=plot_name, width=600, height=600)
+            plot(g5_fit)
+            dev.off()
+            
+            plot_name=paste0(WMO, "_regr_drift_uncorrected_A.png")
+            png(filename=plot_name, width=600, height=600)
+            plot(g4)
+            dev.off()
         } else {
             cat("No valid drift data points were found")
         }
         if ( dim(DRIFT_dataf)[1] != 0 ) {
             x11(xpos=-1, ypos=0)
             plot(g6)
-            x11(xpos=-1, ypos=-1)
+            x11(xpos=-1, ypos=100)
+            plot(g7_fit)
+            x11(xpos=-1, ypos=200)
             plot(g7_fit_2)
+            
+            plot_name=paste0(WMO, "_regr_drift_B.png")
+            png(filename=plot_name, width=600, height=600)
+            plot(g7_fit)
+            dev.off()
+            
+            plot_name=paste0(WMO, "_regr_drift_uncorrected_B.png")
+            png(filename=plot_name, width=600, height=600)
+            plot(g6)
+            dev.off()
         } else {
             cat("The alternative drift method found no valid dark data points")
         }
@@ -373,12 +397,14 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             A_axis_drift_corr = A_axis_drift
             B_axis_drift_corr = B_axis_drift
             C_axis_drift_corr = C_axis_drift
+            Q_axis_drift_corr = Q_axis_drift
             break},
             
             {fitted_coeff_drift_corr = fitted_coeff_DRIFT
             A_axis_drift_corr = A_axis_DRIFT
             B_axis_drift_corr = B_axis_DRIFT
             C_axis_drift_corr = C_axis_DRIFT
+            Q_axis_drift_corr = Q_axis_drift
             break}
         )
         
@@ -394,6 +420,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     
     while(dev.cur() > 1) {dev.off()}
     
+    
+    
     ###############################################
     #### Start of radiometry/Ts matches extraction
     ###############################################
@@ -401,16 +429,16 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     files_night_PARALLEL = rep(files_night, 4)
     date_night_PARALLEL = rep(date_night, 4)
     PARAM_NAMES_night_PARALLEL = rep(PARAM_NAMES, each=length(files_night))
-    A_axis_drift_night_PARALLEL = rep(A_axis_drift, each=length(files_night))
-    C_axis_drift_night_PARALLEL = rep(C_axis_drift, each=length(files_night))
-    Q_axis_drift_night_PARALLEL = rep(Q_axis_drift, each=length(files_night))
+    A_axis_drift_night_PARALLEL = rep(A_axis_drift_corr, each=length(files_night))
+    C_axis_drift_night_PARALLEL = rep(C_axis_drift_corr, each=length(files_night))
+    Q_axis_drift_night_PARALLEL = rep(Q_axis_drift_corr, each=length(files_night))
     
     files_day_PARALLEL = rep(files_day, 4)
     date_day_PARALLEL = rep(date_day, 4)
     PARAM_NAMES_day_PARALLEL = rep(PARAM_NAMES, each=length(files_day))
-    A_axis_drift_day_PARALLEL = rep(A_axis_drift, each=length(files_day))
-    C_axis_drift_day_PARALLEL = rep(C_axis_drift, each=length(files_day))
-    Q_axis_drift_day_PARALLEL = rep(Q_axis_drift, each=length(files_day))
+    A_axis_drift_day_PARALLEL = rep(A_axis_drift_corr, each=length(files_day))
+    C_axis_drift_day_PARALLEL = rep(C_axis_drift_corr, each=length(files_day))
+    Q_axis_drift_day_PARALLEL = rep(Q_axis_drift_corr, each=length(files_day))
     
     NIGHT_MATCH = mcmapply(get_profile_match, file_name=files_night_PARALLEL, param_name=PARAM_NAMES_night_PARALLEL,
     						PROFILE_DATE=date_night_PARALLEL, path_to_netcdf=path_to_netcdf, drift_A=A_axis_drift_night_PARALLEL,
@@ -529,57 +557,41 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     g2_day = g1_day + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
     g3_day = g2_day + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
     
-    save_plots=TRUE
-    if (save_plots) {
-    	plot_name=paste0(WMO, "_regr_day.png")
-    	png(filename=plot_name, width=600, height=600)
-    	plot(g3_day)
-    	dev.off()
+    x11(xpos=0, ypos=0)
+    plot(g2)
+    x11(xpos=0, ypos=-1)
+    plot(g3)
+    x11(xpos=-1, ypos=0)
+    plot(g2_day)
+    x11(xpos=-1, ypos=-1)
+    plot(g3_day)
     
-    	plot_name=paste0(WMO, "_regr_night.png")
-    	png(filename=plot_name, width=600, height=600)
-    	plot(g3)
-    	dev.off()
+    plot_name=paste0(WMO, "_regr_day.png")
+    png(filename=plot_name, width=600, height=600)
+    plot(g3_day)
+    dev.off()
     
-    	plot_name=paste0(WMO, "_regr_drift.png")
-    	png(filename=plot_name, width=600, height=600)
-    	plot(g5_fit)
-    	dev.off()
+    plot_name=paste0(WMO, "_regr_night.png")
+    png(filename=plot_name, width=600, height=600)
+    plot(g3)
+    dev.off()
     
-    	plot_name=paste0(WMO, "_regr_drift_uncorrected.png")
-    	png(filename=plot_name, width=600, height=600)
-    	plot(g4)
-    	dev.off()
-    }
+    choice = my_menu(title = "Which correction should be used ? (0 to abandon and quit)",
+                     choices = c("Continue with correction from day method",
+                                 "Continue with correction from night method"))
     
-    #all_match_380 = mcmapply(get_Ts_match, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE,
-    #							MoreArgs=list(path_to_netcdf=path_to_netcdf, PARAM_NAME="DOWN_IRRADIANCE380"))
+    switch (choice+1,
+            return(0),
+            
+            {fitted_coeff_corr = fitted_coeff_day
+            A_axis_corr = A_axis_day
+            B_axis_corr = B_axis_day},
+            
+            {fitted_coeff_corr = fitted_coeff
+            A_axis_corr = A_axis
+            B_axis_corr = B_axis}
+    )
     
-    #plot_corr_380 <- function(n) {
-    #
-    #	corr = all_match_380[[n]]$PARAM - ( A_axis[2] + B_axis[2] * all_match_380[[n]]$Ts )
-    #
-    #	dataf3 = data.frame(IRR380=all_match_380[[n]]$PARAM, PRES=all_match_380[[n]]$PRES, corr=corr, Ts=all_match_380[[n]]$Ts)
-    #
-    #	g3 = ggplot(na.omit(dataf3), aes(x=IRR380, y=PRES)) +
-    #		geom_point() +
-    #		scale_x_continuous(trans="log10") +
-    #		scale_y_continuous(trans="reverse") +
-    #		geom_path(mapping=aes(x=corr, y=PRES), color="red")
-    #	
-    #	g3_1 = ggplot(na.omit(dataf3), aes(x=IRR380, y=PRES)) +
-    #		geom_point() +
-    #		scale_x_continuous(limits=c(-1e-4, 1e-4)) +
-    #		scale_y_continuous(trans="reverse") +
-    #		geom_path(mapping=aes(x=corr, y=PRES), color="red")
-    #
-    #	g4 = ggplot(na.omit(dataf3), aes(x=Ts, y=PRES)) +
-    #		geom_point() + 
-    #		scale_y_continuous(trans="reverse")
-    #
-    #	grid.arrange(g3_1, g3, g4, nrow=1)
-    #
-    #}
     
     ####################################
     ### Apply correction to netcdf
@@ -603,16 +615,16 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     
     	for (i in 1:length(PARAM_NAMES)) {
     		
+    	    ### Adjusted parameter
+    	    
     		matchup = get_Ts_match(file_name=file_name, path_to_netcdf=path_to_netcdf, PARAM_NAME=PARAM_NAMES[i])
     		
-    		param_undrifted = as.numeric( matchup$PARAM - A_axis_drift[i] - C_axis_drift[i] * PROFILE_DATE
-    										- Q_axis_drift[i] * PROFILE_DATE^2 )
+    		param_undrifted = as.numeric( matchup$PARAM - A_axis_drift_corr[i] - C_axis_drift_corr[i] * PROFILE_DATE
+    										- Q_axis_drift_corr[i] * PROFILE_DATE^2 )
     		
-    		if (use_day) {
-    			corr = param_undrifted - ( A_axis_day[i] + B_axis_day[i] * matchup$Ts )
-    		} else {
-    			corr = param_undrifted - ( A_axis[i] + B_axis[i] * matchup$Ts )
-    		}
+    		corr = param_undrifted - ( A_axis_corr[i] + B_axis_corr[i] * matchup$Ts )
+    		
+    		### error
     		
     		corr_error = 0.2*corr #TODO
     
@@ -623,6 +635,9 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		fnc = nc_open(full_file_name_out, write=TRUE)
     		
     		ncvar_put(fnc, paste(PARAM_NAMES[i],"_ADJUSTED",sep=""), corr, start=c(1, matchup$id_prof), count=c(matchup$n_levels, 1))
+    		#function(file_out, param_name, DATE, scientific_comment, scientific_coefficient, scientific_equation, 
+    		#         comment_dmqc_operator_PRIMARY, comment_dmqc_operator_PARAM, HISTORY_SOFTWARE, HISTORY_SOFTWARE_RELEASE, 
+    		#         param_adjusted=NULL, param_adjusted_qc=NULL, param_adjusted_error=NULL, fill_value=FALSE, do_N_CALIB_increment=FALSE)
     		
     		nc_close(fnc)
     	}
