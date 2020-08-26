@@ -29,6 +29,7 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
     if (length(id_param_arr_C)==2) id_prof_C=id_param_arr_C[2] else id_prof_C=id_param_arr_C[1,2]
     n_levels_B = filenc_B$dim$N_LEVELS$len
     n_levels_C = filenc_C$dim$N_LEVELS$len # should be the same as n_levels_B
+    n_prof_B = filenc_B$dim$N_PROF$len
     
     PARAM = ncvar_get(filenc_B, PARAM_NAME, start=c(1,id_prof_B), count=c(n_levels_B,1))	
     TEMP = ncvar_get(filenc_C, "TEMP", start=c(1,id_prof_C), count=c(n_levels_C,1))	
@@ -52,7 +53,7 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
     
     fitted_Ts = sensor_temp(TEMP, PRES_C, PRES_B)
     
-    return(list("PARAM"=PARAM, "Ts"=fitted_Ts, "PRES"=PRES_B, "id_prof"=id_prof_B, "n_levels"=n_levels_B))
+    return(list("PARAM"=PARAM, "Ts"=fitted_Ts, "PRES"=PRES_B, "id_prof"=id_prof_B, "n_prof"=n_prof_B, "n_levels"=n_levels_B))
 }
 
 get_profile_match <- function(file_name, param_name, path_to_netcdf, PROFILE_DATE, method="night", drift_A=0, drift_C=0, drift_Q=0) {

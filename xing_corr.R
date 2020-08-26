@@ -624,24 +624,54 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		
     		corr = param_undrifted - ( A_axis_corr[i] + B_axis_corr[i] * matchup$Ts )
     		
-    		### error
+    		corr_array = array(NA, c(matchup$n_levels, matchup$n_prof))
+    		corr_array[, matchup$id_prof] = corr
+    		
+    		### Error
     		
     		corr_error = 0.2*corr #TODO
-    
+    		
+    		corr_error_array = array(NA, c(matchup$n_levels, matchup$n_prof))
+    		corr_error_array[, matchup$id_prof] = corr_error
+            
+    		### Flags
+    		
     		corr_qc = rep("1", length(corr)) #TODO
     		corr_qc[which(is.na(corr))] = "4"
-    		corr_qc = paste(corr_qc, collapse="")				
-    
-    		fnc = nc_open(full_file_name_out, write=TRUE)
+    		corr_qc = paste(corr_qc, collapse="")	
     		
-    		ncvar_put(fnc, paste(PARAM_NAMES[i],"_ADJUSTED",sep=""), corr, start=c(1, matchup$id_prof), count=c(matchup$n_levels, 1))
-    		#function(file_out, param_name, DATE, scientific_comment, scientific_coefficient, scientific_equation, 
-    		#         comment_dmqc_operator_PRIMARY, comment_dmqc_operator_PARAM, HISTORY_SOFTWARE, HISTORY_SOFTWARE_RELEASE, 
-    		#         param_adjusted=NULL, param_adjusted_qc=NULL, param_adjusted_error=NULL, fill_value=FALSE, do_N_CALIB_increment=FALSE)
+    		blank_qc = paste(rep(" ", matchup$n_levels), collapse="")
+            corr_qc_array = rep(blank_qc, matchup$n_prof)
+            corr_qc_array[matchup$id_prof] = corr_qc
+    		
+    		### Scientific comment
+    		
+    		### Scientific coefficient
+    		
+    		### Scientific equation
+    		
+    		### comment_dmqc_operator_PRIMARY 
+    		
+    		### comment_dmqc_operator_PARAM 
+    		
+    		### HISTORY_SOFTWARE 
+    		
+    		### HISTORY_SOFTWARE_RELEASE
+    		
+    		
+    		### write to file
+    		
+    		#fnc = nc_open(full_file_name_out, write=TRUE)
+    		#ncvar_put(fnc, paste(PARAM_NAMES[i],"_ADJUSTED",sep=""), corr, start=c(1, matchup$id_prof), count=c(matchup$n_levels, 1))
+    		
+    		exit = write_DM(file_out=full_file_name_out, param_name=PARAM_NAMES[i], DATE=DATE, scientific_comment="test", scientific_coefficient="test", 
+    		                scientific_equation="test", comment_dmqc_operator_PRIMARY="test", comment_dmqc_operator_PARAM="test", HISTORY_SOFTWARE="test", 
+    		                HISTORY_SOFTWARE_RELEASE="test", param_adjusted=corr_array, param_adjusted_qc=corr_qc_array, 
+    		                param_adjusted_error=corr_error_array)
     		
     		nc_close(fnc)
     	}
-    	return(0)	
+    	return(exit)	
     		
     }
     
