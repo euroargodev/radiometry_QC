@@ -600,19 +600,19 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     date_update = Sys.time()
     DATE = stri_datetime_format(date_update, format="uuuuMMddHHmmss", tz="UTC")
     
-    corr_file <- function(file_name, PROFILE_DATE, path_to_netcdf, use_day=FALSE) {
+    corr_file <- function(file_name, PROFILE_DATE, path_to_netcdf) {
     
     	path_sep = unlist(strsplit(file_name, "/"))
-    	if (use_day) {
-    		file_name_out = paste(path_sep[1], path_sep[2], path_sep[3], "radiometry_xing_day", path_sep[4], sep="/")
-    	} else {
-    		file_name_out = paste(path_sep[1], path_sep[2], path_sep[3], "radiometry_xing", path_sep[4], sep="/")
-    	}
+
+    	file_name_out = paste(path_sep[1], path_sep[2], path_sep[3], "RADM/RADM_profiles", path_sep[4], sep="/")
+
     	full_file_name_out = paste(path_to_netcdf, file_name_out, sep="")
     	full_file_name_in = paste(path_to_netcdf, file_name, sep="")
     	
     	system2("cp", c(full_file_name_in, full_file_name_out))
-    
+        
+    	exit = rep(NA, 4)
+    	
     	for (i in 1:length(PARAM_NAMES)) {
     		
     	    ### Adjusted parameter
@@ -663,23 +663,24 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		
     		#fnc = nc_open(full_file_name_out, write=TRUE)
     		#ncvar_put(fnc, paste(PARAM_NAMES[i],"_ADJUSTED",sep=""), corr, start=c(1, matchup$id_prof), count=c(matchup$n_levels, 1))
+            #nc_close(fnc)
     		
-    		exit = write_DM(file_out=full_file_name_out, param_name=PARAM_NAMES[i], DATE=DATE, scientific_comment="test", scientific_coefficient="test", 
-    		                scientific_equation="test", comment_dmqc_operator_PRIMARY="test", comment_dmqc_operator_PARAM="test", HISTORY_SOFTWARE="test", 
-    		                HISTORY_SOFTWARE_RELEASE="test", param_adjusted=corr_array, param_adjusted_qc=corr_qc_array, 
-    		                param_adjusted_error=corr_error_array)
+    		exit[i] = write_DM(file_out=full_file_name_out, param_name=PARAM_NAMES[i], DATE=DATE, scientific_comment="test", scientific_coefficient="test", 
+    		                   scientific_equation="test", comment_dmqc_operator_PRIMARY="test", comment_dmqc_operator_PARAM="test", HISTORY_SOFTWARE="test", 
+    		                   HISTORY_SOFTWARE_RELEASE="test", param_adjusted=corr_array, param_adjusted_qc=corr_qc_array, 
+    		                   param_adjusted_error=corr_error_array)
     		
-    		nc_close(fnc)
+    		
     	}
     	return(exit)	
     		
     }
     
     
-    #corr_file(files_list[1], path_to_netcdf)
+    #corr_file(files_list[1], PROFILE_DATE=date_list[1], path_to_netcdf=path_to_netcdf)
     
-    #corr_all = mcmapply(corr_file, file_name=files_list, PROFILE_DATE=date_list, mc.cores=n_cores, SIMPLIFY=FALSE,
-    #							MoreArgs=list(path_to_netcdf=path_to_netcdf, use_day=FALSE))
+    corr_all = mcmapply(corr_file, file_name=files_list, PROFILE_DATE=date_list, mc.cores=n_cores, SIMPLIFY=FALSE,
+    							MoreArgs=list(path_to_netcdf=path_to_netcdf))
 
     return(0)
 }
