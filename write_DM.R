@@ -59,7 +59,11 @@ write_DM <- function(file_out, param_name, DATE, scientific_comment, scientific_
     last_cal = max(which(calib_date!="              "),0)
     
     # increment n_calib for the parameter
-    new_cal = last_cal + 1
+    if (do_N_CALIB_increment) {
+        new_cal = last_cal + 1
+    } else {
+        new_cal = max(last_cal, 1)
+    }
     
     # position to write calibration to
     id_calib = c(id_param_arr[1], new_cal, id_param_arr[2])
