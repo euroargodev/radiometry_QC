@@ -38,7 +38,8 @@ my_menu <- function(choices, title=NULL) {
 
 main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_cores=detectCores()) {
 
-
+    cat("Preparing file lists, dates, and greylist...")
+    
     files = as.character(index_ifremer$file) #retrieve the path of each netcfd file
     ident = strsplit(files,"/") #separate the different roots of the files paths
     ident = matrix(unlist(ident), ncol=4, byrow=TRUE)
@@ -125,6 +126,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     	return(greylisted_bool)
     }
     
+    cat("DONE\nImporting and extracting drift data...")
     
     ####################################
     ### Start of drift considerations
@@ -173,6 +175,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     
     drift_dataf = data.frame("PARAM"=DRIFT, "PARAM_Ts"=DRIFT_Ts, "PARAM_date"=DRIFT_date, "PARAM_name"=DRIFT_name)
     
+    cat("DONE\nExtracting dark data for method B...")
+    
     files_drift_PARALLEL = rep(files_list, 4)
     date_drift_PARALLEL = rep(date_list, 4)
     PARAM_NAMES_drift_PARALLEL = rep(PARAM_NAMES, each=length(files_list))
@@ -185,24 +189,25 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     					   	"PARAM_date"=unlist(DRIFT_MATCH[3,]), 
     						"PARAM_name"=unlist(DRIFT_MATCH[4,]))
     
-    TEST_MATCH = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
-                          path_to_netcdf=path_to_netcdf, PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
-                           MoreArgs=list(method="test"))
-    TEST_dataf = data.frame("PARAM"=unlist(TEST_MATCH[1,]), 
-                             "PARAM_Ts"=unlist(TEST_MATCH[2,]), 
-                             "PARAM_date"=unlist(TEST_MATCH[3,]), 
-                             "PARAM_name"=unlist(TEST_MATCH[4,]))
+    #TEST_MATCH = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
+    #                      path_to_netcdf=path_to_netcdf, PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
+    #                       MoreArgs=list(method="test"))
+    #TEST_dataf = data.frame("PARAM"=unlist(TEST_MATCH[1,]), 
+    #                         "PARAM_Ts"=unlist(TEST_MATCH[2,]), 
+    #                         "PARAM_date"=unlist(TEST_MATCH[3,]), 
+    #                         "PARAM_name"=unlist(TEST_MATCH[4,]))
     
-    T_PAR = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWNWELLING_PAR")]
-    T_380 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE380")]
-    T_412 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE412")]
-    T_490 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE490")]
+    #T_PAR = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWNWELLING_PAR")]
+    #T_380 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE380")]
+    #T_412 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE412")]
+    #T_490 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE490")]
     
-    nna = which(!is.na(T_PAR) & !is.na(T_380) & !is.na(T_412) & !is.na(T_490))
+    #nna = which(!is.na(T_PAR) & !is.na(T_380) & !is.na(T_412) & !is.na(T_490))
     
     #plot(T_PAR[nna], T_380[nna])
     #lm(T_380[nna] ~ 0 + T_PAR[nna])$coefficients
     
+    cat("DONE\nFlagging outliers and greylist...")
     
     ### remove drift outliers
     is_drift_outlier = rep(NA, length(drift_dataf$PARAM))
@@ -239,10 +244,14 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
                                        PARAMETER_NAME=as.character(DRIFT_dataf$PARAM_name),
                                        MoreArgs=list(WMO=WMO))
     
+    cat("DONE\n")
     
     do_quadratic_fit = c(F, F, F, F)
 
     repeat { # loop until the user finds an adequate fit or quits
+        
+        cat("Fitting both methods...")
+        
         A_axis_drift = rep(NA, 4)
         B_axis_drift = rep(NA, 4)
         C_axis_drift = rep(NA, 4)
@@ -296,6 +305,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         
         	DRIFT_dataf_5C$PARAM[subset_PAR] = DRIFT_dataf_5C$PARAM[subset_PAR] - B_axis_DRIFT[i] * (DRIFT_dataf_5C$PARAM_Ts[subset_PAR] - 5)
         }
+        
+        cat("DONE\nCreating drift plots...")
         
         good_drift = which(!drift_dataf$is_greylisted & !drift_dataf$is_drift_outlier)
         range_time = seq(min(c(drift_dataf$PARAM_date[good_drift], date_list)), max(c(drift_dataf$PARAM_date[good_drift], date_list)), length.out=100 )
@@ -386,6 +397,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             cat("The alternative drift method found no valid dark data points")
         }
         
+        cat("DONE\n")
+        
         choice = my_menu(title = "What is the next step ? (0 to abandon and quit)",
                          choices = c("Continue with correction from method A",
                                      "Continue with correction from method B",
@@ -426,6 +439,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     #### Start of radiometry/Ts matches extraction
     ###############################################
     
+    cat("Extracting day and night profiles...")
+    
     files_night_PARALLEL = rep(files_night, 4)
     date_night_PARALLEL = rep(date_night, 4)
     PARAM_NAMES_night_PARALLEL = rep(PARAM_NAMES, each=length(files_night))
@@ -448,6 +463,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     						PROFILE_DATE=date_day_PARALLEL, path_to_netcdf=path_to_netcdf, drift_A=A_axis_drift_day_PARALLEL,
     						drift_C=C_axis_drift_day_PARALLEL, drift_Q=Q_axis_drift_day_PARALLEL,
     						mc.cores=n_cores, USE.NAMES=FALSE, MoreArgs=list(method="day"))
+    
+    cat("DONE\nFlagging greylisted profiles and outliers in day profiles...")
     
     ### find dark median outliers in day profiles
     all_param_names = unlist(lapply(DAY_MATCH[4,], `[[`, 1)) # extract the first element of each profile
@@ -483,16 +500,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     								PARAMETER_NAME=as.character(DAY_dataf$PARAM_name),
     								MoreArgs=list(WMO=WMO))
     
-    g1 = ggplot(na.omit(PAR_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
-    	geom_point(data=function(x){x[!x$is_greylisted, ]}) +
-    	#geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
-    	scale_color_viridis() +
-    	facet_wrap(~PARAM_name, scale="free_y")
-    g1_day = ggplot(na.omit(DAY_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
-    	geom_point(data=function(x){x[!x$is_greylisted & !x$is_dark_outlier, ]}) +
-    	#geom_point(data=function(x){x[x$is_greylisted & !x$is_dark_outlier, ]}, color="red") +
-    	scale_color_viridis() +
-    	facet_wrap(~PARAM_name, scale="free_y")
+    cat("DONE\nFitting Ts to radiometry parameters...")
     
     ###########################
     ### Start of Ts fitting
@@ -538,6 +546,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     	
     }
     
+    cat("DONE\nCreating Ts/Irr plots...")
+    
     Ts_range = range(c(PAR_dataf$PARAM_Ts, DAY_dataf$PARAM_Ts), na.rm=T)
     
     data_fit = data.frame(
@@ -550,6 +560,17 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     	x = rep(Ts_range, 4),
     	y = rep(A_axis_day, each=2) + rep(B_axis_day, each=2) * rep(Ts_range, 4)
     )
+    
+    g1 = ggplot(na.omit(PAR_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
+        geom_point(data=function(x){x[!x$is_greylisted, ]}) +
+        #geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
+        scale_color_viridis() +
+        facet_wrap(~PARAM_name, scale="free_y")
+    g1_day = ggplot(na.omit(DAY_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
+        geom_point(data=function(x){x[!x$is_greylisted & !x$is_dark_outlier, ]}) +
+        #geom_point(data=function(x){x[x$is_greylisted & !x$is_dark_outlier, ]}, color="red") +
+        scale_color_viridis() +
+        facet_wrap(~PARAM_name, scale="free_y")
     
     g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
     g3 = g2 + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
@@ -575,6 +596,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     png(filename=plot_name, width=600, height=600)
     plot(g3)
     dev.off()
+    
+    cat("DONE\n")
     
     choice = my_menu(title = "Which correction should be used ? (0 to abandon and quit)",
                      choices = c("Continue with correction from day method",
@@ -676,12 +699,15 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		
     }
     
+    cat("Applying correction to netcdf files...")
     
     #corr_file(files_list[1], PROFILE_DATE=date_list[1], path_to_netcdf=path_to_netcdf)
     
     corr_all = mcmapply(corr_file, file_name=files_list, PROFILE_DATE=date_list, mc.cores=n_cores, SIMPLIFY=FALSE,
     							MoreArgs=list(path_to_netcdf=path_to_netcdf))
 
+    cat("DONE\n")
+    
     return(0)
 }
 

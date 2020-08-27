@@ -15,11 +15,13 @@ if ( WMO=="NA" ) {
     stop()
 }
 
+cat("Importing libraries and source code...")
 
 ### import pathways
 source("~/Documents/radiometry/pathways.R")
 
 ### Source the DM functions and subfunctions, and libraries
+suppressPackageStartupMessages({
 library(ncdf4)
 library(stringr)
 library(stringi)
@@ -30,7 +32,8 @@ library(viridis)
 library(gridExtra)
 library(gtools)
 library(nortest)
-
+})
+    
 source(paste(path_to_source, "possol.R", sep=""))
 source(paste(path_to_source, "sensor_temp.R", sep=""))
 source(paste(path_to_source, "xing_corr.R", sep=""))
@@ -38,10 +41,13 @@ source(paste(path_to_source, "get_matches.R", sep=""))
 source(paste(path_to_source, "write_DM.R", sep=""))
 source(paste(path_to_source, "increment_N_CALIB.R", sep=""))
 
+cat("DONE\nImporting bio index and greylist...")
+
 ### import tables
 index_ifremer = read.table(path_to_index_ifremer, sep=",", header = T)
 index_greylist = read.csv(path_to_index_greylist, sep = ",")
 
+cat("DONE\n")
 
 ### Treat optional arguments
 
