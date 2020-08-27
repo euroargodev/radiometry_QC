@@ -627,6 +627,14 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             B_axis_corr = B_axis_day}
     )
     
+    choice = my_menu(title = "What QC flag is the DM allowed to have at best ? (0 to abandon and quit)",
+                     choices = c("Good",
+                                 "Probably good",
+                                 "Probably bad",
+                                 "Bad"))
+    if (choice == 0) { return(0) }
+    
+    best_QC = choice
     
     ####################################
     ### Apply correction to netcdf
@@ -671,7 +679,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             
     		### Flags
     		
-    		corr_qc = rep("1", length(corr)) #TODO
+    		corr_qc = rep(as.character(best_QC), length(corr)) #TODO
     		corr_qc[which(is.na(corr) & !is.na(matchup$PRES))] = "4"
     		corr_qc = paste(corr_qc, collapse="")	
     		
