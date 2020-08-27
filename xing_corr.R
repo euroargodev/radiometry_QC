@@ -417,7 +417,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             A_axis_drift_corr = A_axis_DRIFT
             B_axis_drift_corr = B_axis_DRIFT
             C_axis_drift_corr = C_axis_DRIFT
-            Q_axis_drift_corr = Q_axis_drift
+            Q_axis_drift_corr = Q_axis_DRIFT
             break}
         )
         
@@ -652,7 +652,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		
     		### Error
     		
-    		corr_error = 0.2*corr #TODO
+    		corr_error = 0.2*abs(corr) #TODO
     		
     		corr_error_array = array(NA, c(matchup$n_levels, matchup$n_prof))
     		corr_error_array[, matchup$id_prof] = corr_error
@@ -660,7 +660,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		### Flags
     		
     		corr_qc = rep("1", length(corr)) #TODO
-    		corr_qc[which(is.na(corr))] = "4"
+    		corr_qc[which(is.na(corr) & !is.na(matchup$PRES))] = "4"
     		corr_qc = paste(corr_qc, collapse="")	
     		
     		blank_qc = paste(rep(" ", matchup$n_levels), collapse="")
@@ -668,19 +668,39 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             corr_qc_array[matchup$id_prof] = corr_qc
     		
     		### Scientific comment
+            
+            scientific_comment="test" #TODO
     		
     		### Scientific coefficient
+            
+            A_total = A_axis_drift_corr[i] + A_axis_corr[i]
+            scientific_coefficient = paste0("A = ", signif(A_total,4),", B = ", signif(B_axis_corr[i],4), ", C = ", signif(C_axis_drift_corr[i],4))
+            if (Q_axis_drift_corr[i] != 0) {
+                scientific_coefficient = paste0(scientific_coefficient, ", Q = ", signif(Q_axis_drift_corr[i],4))
+            }
     		
     		### Scientific equation
+            
+            scientific_equation = paste0(PARAM_NAMES[i], "_ADJUSTED = ", PARAM_NAMES[i], " - A - B*SENSOR_TEMP - C*JULD")
+            if (Q_axis_drift_corr[i] != 0) {
+                scientific_equation = paste0(scientific_equation, " - Q*JULD^2")
+            }
     		
     		### comment_dmqc_operator_PRIMARY 
-    		
+            
+            comment_dmqc_operator_PRIMARY = "PRIMARY | https://orcid.org/0000-0001-9992-5334 | Raphaelle Sauzede, CNRS" 
+            
     		### comment_dmqc_operator_PARAM 
+            
+            comment_dmqc_operator_PARAM = paste(PARAM_NAMES[i],  "| https://orcid.org/0000-0002-1230-164X | Catherine Schmechtig, CNRS")
     		
     		### HISTORY_SOFTWARE 
+            
+            HISTORY_SOFTWARE = "RADM"
     		
     		### HISTORY_SOFTWARE_RELEASE
     		
+            HISTORY_SOFTWARE_RELEASE = "0.00"
     		
     		### write to file
     		
@@ -688,10 +708,11 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		#ncvar_put(fnc, paste(PARAM_NAMES[i],"_ADJUSTED",sep=""), corr, start=c(1, matchup$id_prof), count=c(matchup$n_levels, 1))
             #nc_close(fnc)
     		
-    		exit[i] = write_DM(file_out=full_file_name_out, param_name=PARAM_NAMES[i], DATE=DATE, scientific_comment="test", scientific_coefficient="test", 
-    		                   scientific_equation="test", comment_dmqc_operator_PRIMARY="test", comment_dmqc_operator_PARAM="test", HISTORY_SOFTWARE="test", 
-    		                   HISTORY_SOFTWARE_RELEASE="test", param_adjusted=corr_array, param_adjusted_qc=corr_qc_array, 
-    		                   param_adjusted_error=corr_error_array)
+    		exit[i] = write_DM(file_out=full_file_name_out, param_name=PARAM_NAMES[i], DATE=DATE, scientific_comment=scientific_comment, 
+    		                   scientific_coefficient=scientific_coefficient, scientific_equation=scientific_equation, 
+    		                   comment_dmqc_operator_PRIMARY=comment_dmqc_operator_PRIMARY, comment_dmqc_operator_PARAM=comment_dmqc_operator_PARAM, 
+    		                   HISTORY_SOFTWARE=HISTORY_SOFTWARE, HISTORY_SOFTWARE_RELEASE=HISTORY_SOFTWARE_RELEASE, param_adjusted=corr_array, 
+    		                   param_adjusted_qc=corr_qc_array, param_adjusted_error=corr_error_array)
     		
     		
     	}
