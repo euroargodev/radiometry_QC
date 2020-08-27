@@ -330,23 +330,31 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
         	geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
         	scale_color_viridis() +
-        	facet_wrap(~PARAM_name, scale="free_y")
+        	facet_wrap(~PARAM_name, scale="free_y") +
+            labs (x="Julian day", y="Irradiance", colour="Closest drift\ntemperature", 
+                  title="Irradiance measurements during float drift")
         g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
         	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
         	geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
         	#geom_point(data=function(x){x[x$is_drift_outlier & !x$is_greylisted, ]}, color="red", shape=4) +
         	scale_color_viridis() +
-        	facet_wrap(~PARAM_name, scale="free_y")
+        	facet_wrap(~PARAM_name, scale="free_y") +
+            labs (x="Julian day", y="Irradiance", colour="Closest drift\ntemperature",
+                  title="Irradiance measurements during float drift,\nfitted to time and temperature and adjusted to 5°C")
         g6 = ggplot(na.omit(DRIFT_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
         	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
             geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
         	scale_color_viridis() +
-        	facet_wrap(~PARAM_name, scale="free_y")
+        	facet_wrap(~PARAM_name, scale="free_y") +
+            labs (x="Julian day", y="Irradiance", colour="Sensor\ntemperature", 
+                  title="Dark data extracted from profiles")
         g7 = ggplot(na.omit(DRIFT_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
             geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
             geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
         	scale_color_viridis() +
-        	facet_wrap(~PARAM_name, scale="free_y")
+        	facet_wrap(~PARAM_name, scale="free_y") +
+            labs (x="Julian day", y="Irradiance", colour="Sensor\ntemperature", 
+                  title="Dark data extracted from profiles,\nfitted to time and temperature and adjusted to 5°C")
         	
         #g4_fit = g4 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
         g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
@@ -403,7 +411,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
                          choices = c("Continue with correction from method A",
                                      "Continue with correction from method B",
                                      "Change to quadratic fits for some parameters"))
-        switch (choice+1,
+        switch (choice + 1,
             return(0),
             
             {fitted_coeff_drift_corr = fitted_coeff_drift
@@ -565,12 +573,16 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         geom_point(data=function(x){x[!x$is_greylisted, ]}) +
         #geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
         scale_color_viridis() +
-        facet_wrap(~PARAM_name, scale="free_y")
+        facet_wrap(~PARAM_name, scale="free_y") +
+        labs (x="Sensor temperature", y="Irradiance", colour="Julian day", 
+              title="Data from night profiles")
     g1_day = ggplot(na.omit(DAY_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
         geom_point(data=function(x){x[!x$is_greylisted & !x$is_dark_outlier, ]}) +
         #geom_point(data=function(x){x[x$is_greylisted & !x$is_dark_outlier, ]}, color="red") +
         scale_color_viridis() +
-        facet_wrap(~PARAM_name, scale="free_y")
+        facet_wrap(~PARAM_name, scale="free_y") +
+        labs (x="Sensor temperature", y="Irradiance", colour="Julian day", 
+              title="Data selected from day profiles")
     
     g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
     g3 = g2 + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
@@ -600,19 +612,19 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     cat("DONE\n")
     
     choice = my_menu(title = "Which correction should be used ? (0 to abandon and quit)",
-                     choices = c("Continue with correction from day method",
-                                 "Continue with correction from night method"))
+                     choices = c("Continue with correction from night method",
+                                 "Continue with correction from day method"))
     
-    switch (choice+1,
+    switch (choice + 1,
             return(0),
-            
-            {fitted_coeff_corr = fitted_coeff_day
-            A_axis_corr = A_axis_day
-            B_axis_corr = B_axis_day},
             
             {fitted_coeff_corr = fitted_coeff
             A_axis_corr = A_axis
-            B_axis_corr = B_axis}
+            B_axis_corr = B_axis},
+            
+            {fitted_coeff_corr = fitted_coeff_day
+            A_axis_corr = A_axis_day
+            B_axis_corr = B_axis_day}
     )
     
     
