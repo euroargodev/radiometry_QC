@@ -183,7 +183,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     
     DRIFT_MATCH = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
     						path_to_netcdf=path_to_netcdf, PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
-    						MoreArgs=list(method="drift_xing"))
+    						MoreArgs=list(method="drift"))
     DRIFT_dataf = data.frame("PARAM"=unlist(DRIFT_MATCH[1,]), 
     						"PARAM_Ts"=unlist(DRIFT_MATCH[2,]), 
     					   	"PARAM_date"=unlist(DRIFT_MATCH[3,]), 
@@ -657,15 +657,33 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     	exit = rep(NA, 4)
     	
     	for (i in 1:length(PARAM_NAMES)) {
+    	    
+    	    matchup = get_Ts_match(file_name=file_name, path_to_netcdf=path_to_netcdf, PARAM_NAME=PARAM_NAMES[i])
+    	    
+    	    match_day = get_profile_match(file_name=file_name, param_name=PARAM_NAMES[i], path_to_netcdf=path_to_netcdf, 
+    	                                  PROFILE_DATE=PROFILE_DATE, method="day", drift_A=A_axis_drift_corr[i], 
+    	                                  drift_C=C_axis_drift_corr[i], drift_Q=Q_axis_drift_corr[i])
+    	    
+    	    ### Flags
+    	    
+    	    corr_qc = matchup$PARAM_QC
+    	    
+    	    corr_qc[match_day$MATCH_which] = rep(as.character(best_QC), length(match_day$MATCH_which)) #if which==NULL --> no change
+    	    corr_qc[which(matchup$PARAM_QC=="3")] = "3"
+    	    corr_qc[which(matchup$PARAM_QC=="4")] = "4"
+    	    corr_qc_word = paste(corr_qc, collapse="")	
+    	    
+    	    blank_qc = paste(rep(" ", matchup$n_levels), collapse="")
+    	    corr_qc_array = rep(blank_qc, matchup$n_prof)
+    	    corr_qc_array[matchup$id_prof] = corr_qc_word
     		
     	    ### Adjusted parameter
     	    
-    		matchup = get_Ts_match(file_name=file_name, path_to_netcdf=path_to_netcdf, PARAM_NAME=PARAM_NAMES[i])
-    		
     		param_undrifted = as.numeric( matchup$PARAM - A_axis_drift_corr[i] - C_axis_drift_corr[i] * PROFILE_DATE
     										- Q_axis_drift_corr[i] * PROFILE_DATE^2 )
     		
     		corr = param_undrifted - ( A_axis_corr[i] + B_axis_corr[i] * matchup$Ts )
+    		corr[which(corr_qc == "4")] = NA #filechecker requirement
     		
     		corr_array = array(NA, c(matchup$n_levels, matchup$n_prof))
     		corr_array[, matchup$id_prof] = corr
@@ -677,16 +695,6 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		corr_error_array = array(NA, c(matchup$n_levels, matchup$n_prof))
     		corr_error_array[, matchup$id_prof] = corr_error
             
-    		### Flags
-    		
-    		corr_qc = rep(as.character(best_QC), length(corr)) #TODO
-    		corr_qc[which(is.na(corr) & !is.na(matchup$PRES))] = "4"
-    		corr_qc = paste(corr_qc, collapse="")	
-    		
-    		blank_qc = paste(rep(" ", matchup$n_levels), collapse="")
-            corr_qc_array = rep(blank_qc, matchup$n_prof)
-            corr_qc_array[matchup$id_prof] = corr_qc
-    		
     		### Scientific comment
             
             scientific_comment="test" #TODO
@@ -724,10 +732,6 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		
     		### write to file
     		
-    		#fnc = nc_open(full_file_name_out, write=TRUE)
-    		#ncvar_put(fnc, paste(PARAM_NAMES[i],"_ADJUSTED",sep=""), corr, start=c(1, matchup$id_prof), count=c(matchup$n_levels, 1))
-            #nc_close(fnc)
-    		
     		exit[i] = write_DM(file_out=full_file_name_out, param_name=PARAM_NAMES[i], DATE=DATE, scientific_comment=scientific_comment, 
     		                   scientific_coefficient=scientific_coefficient, scientific_equation=scientific_equation, 
     		                   comment_dmqc_operator_PRIMARY=comment_dmqc_operator_PRIMARY, comment_dmqc_operator_PARAM=comment_dmqc_operator_PARAM, 
@@ -736,6 +740,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		
     		
     	}
+    	
     	return(exit)	
     		
     }
