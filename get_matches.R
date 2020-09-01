@@ -143,18 +143,18 @@ get_profile_match <- function(file_name, param_name, path_to_netcdf, PROFILE_DAT
         #                 "DOWN_IRRADIANCE412" = 1e-4,
         #                 "DOWN_IRRADIANCE490" = 5e-5,
         #                 "DOWNWELLING_PAR" = 5e-2) # test 2
-        #lim_param = list("DOWN_IRRADIANCE380" = 5e-5,
-        #                 "DOWN_IRRADIANCE412" = 5e-5,
-        #                 "DOWN_IRRADIANCE490" = 5e-5,
-        #                 "DOWNWELLING_PAR" = 5e-2) # just orders of magnitude management
+        lim_param = list("DOWN_IRRADIANCE380" = 5e-5,
+                         "DOWN_IRRADIANCE412" = 5e-5,
+                         "DOWN_IRRADIANCE490" = 5e-5,
+                         "DOWNWELLING_PAR" = 5e-2) # just orders of magnitude management
         #lim_param = list("DOWN_IRRADIANCE380" = 3e-5,
         #                 "DOWN_IRRADIANCE412" = 7e-5,
         #                 "DOWN_IRRADIANCE490" = 7e-5,
         #                 "DOWNWELLING_PAR" = 5e-2) # accounting for typical proportionality (6901658)
-        lim_param = list("DOWN_IRRADIANCE380" = 1e-4,
-                         "DOWN_IRRADIANCE412" = 1e-3,
-                         "DOWN_IRRADIANCE490" = 1e-2,
-                         "DOWNWELLING_PAR" = 5e-2) # accounting for typical proportionality (7900561)
+        #lim_param = list("DOWN_IRRADIANCE380" = 1e-4,
+        #                 "DOWN_IRRADIANCE412" = 1e-3,
+        #                 "DOWN_IRRADIANCE490" = 1e-2,
+        #                 "DOWNWELLING_PAR" = 5e-2) # accounting for typical proportionality (7900561)
         
         lim = max(which(run_sd >= lim_param[[param_name]]))
         
