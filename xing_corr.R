@@ -9,7 +9,7 @@ require(gridExtra)
 require(gtools)
 require(nortest)
 
-my_menu <- function(choices, title=NULL) {
+my_menu <- function(choices, title=NULL) { # equivalent to menu() but compatible with non interactive sessions
     
     choice_lines = paste0(as.character(1:length(choices)), 
                           rep(": "),
@@ -74,8 +74,9 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     #WMO = "6901492" # both good
     #WMO = "6903025" # Xing great, new method fails like 6901658 because of deep light gradients
     
-    subset = which( wod==WMO & substr(prof_id,14,14)!="D" & !is.na(prof_date) & grepl("DOWNWELLING_PAR", variables))
-    #subset = which( wod==WMO )
+    subset = which( wod==WMO & substr(prof_id,14,14)!="D" & !is.na(prof_date) & grepl("DOWNWELLING_PAR", variables) )
+    subset_date_miss = which( wod==WMO & substr(prof_id,14,14)!="D" & is.na(prof_date) & grepl("DOWNWELLING_PAR", variables) )
+    subset_copy = which( wod==WMO & ( substr(prof_id,14,14)=="D" | !grepl("DOWNWELLING_PAR", variables) ) )
     
     profile_list = substr(prof_id[subset], 3, 14)
     files_list = files[subset]
@@ -183,26 +184,11 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     
     DRIFT_MATCH = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
     						path_to_netcdf=path_to_netcdf, PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
-    						MoreArgs=list(method="drift"))
+    						MoreArgs=list(method="drift_xing"))
     DRIFT_dataf = data.frame("PARAM"=unlist(DRIFT_MATCH[1,]), 
     						"PARAM_Ts"=unlist(DRIFT_MATCH[2,]), 
     					   	"PARAM_date"=unlist(DRIFT_MATCH[3,]), 
     						"PARAM_name"=unlist(DRIFT_MATCH[4,]))
-    
-    #TEST_MATCH = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
-    #                      path_to_netcdf=path_to_netcdf, PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
-    #                       MoreArgs=list(method="test"))
-    #TEST_dataf = data.frame("PARAM"=unlist(TEST_MATCH[1,]), 
-    #                         "PARAM_Ts"=unlist(TEST_MATCH[2,]), 
-    #                         "PARAM_date"=unlist(TEST_MATCH[3,]), 
-    #                         "PARAM_name"=unlist(TEST_MATCH[4,]))
-    
-    #T_PAR = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWNWELLING_PAR")]
-    #T_380 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE380")]
-    #T_412 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE412")]
-    #T_490 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE490")]
-    
-    #nna = which(!is.na(T_PAR) & !is.na(T_380) & !is.na(T_412) & !is.na(T_490))
     
     #plot(T_PAR[nna], T_380[nna])
     #lm(T_380[nna] ~ 0 + T_PAR[nna])$coefficients
@@ -382,7 +368,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             plot(g4)
             dev.off()
         } else {
-            cat("No valid drift data points were found")
+            cat("\nNo valid drift data points were found...")
         }
         if ( dim(DRIFT_dataf)[1] != 0 ) {
             x11(xpos=-1, ypos=0)
@@ -402,7 +388,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             plot(g6)
             dev.off()
         } else {
-            cat("The alternative drift method found no valid dark data points")
+            cat("\nThe alternative drift method found no valid dark data points...")
         }
         
         cat("DONE\n")
@@ -554,10 +540,27 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     	
     }
     
+    cat("DONE\nExtracting full Ts range...")
+    
+    TEST_MATCH = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
+                          path_to_netcdf=path_to_netcdf, PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
+                          MoreArgs=list(method="test"))
+    TEST_dataf = data.frame("PARAM"=unlist(TEST_MATCH[1,]), 
+                            "PARAM_Ts"=unlist(TEST_MATCH[2,]), 
+                            "PARAM_date"=unlist(TEST_MATCH[3,]), 
+                            "PARAM_name"=unlist(TEST_MATCH[4,]))
+    
+    #T_PAR = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWNWELLING_PAR")]
+    #T_380 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE380")]
+    #T_412 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE412")]
+    #T_490 = TEST_dataf$PARAM[which(TEST_dataf$PARAM_name=="DOWN_IRRADIANCE490")]
+    
+    #nna = which(!is.na(T_PAR) & !is.na(T_380) & !is.na(T_412) & !is.na(T_490))
+    
+    Ts_range = range(c(TEST_dataf$PARAM_Ts), na.rm=T)
+    
     cat("DONE\nCreating Ts/Irr plots...")
-    
-    Ts_range = range(c(PAR_dataf$PARAM_Ts, DAY_dataf$PARAM_Ts), na.rm=T)
-    
+
     data_fit = data.frame(
     	PARAM_name = rep(PARAM_NAMES, each=2),
     	x = rep(Ts_range, 4),
@@ -587,8 +590,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
     g3 = g2 + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
     
-    g2_day = g1_day + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
-    g3_day = g2_day + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
+    g2_day = g1_day + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
+    g3_day = g2_day + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red") 
     
     x11(xpos=0, ypos=0)
     plot(g2)
@@ -627,7 +630,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             B_axis_corr = B_axis_day}
     )
     
-    choice = my_menu(title = "What QC flag is the DM allowed to have at best ? (0 to abandon and quit)",
+    choice = my_menu(title = "What QC flag is the DM allowed to have at best in the dark section of profiles ? (0 to abandon and quit)",
                      choices = c("Good",
                                  "Probably good",
                                  "Probably bad",
@@ -636,6 +639,71 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     
     best_QC = choice
     
+    #### Deal with missing dates
+    
+    prof_num_date_miss = substr(prof_id[subset_date_miss], 11, 13)
+    if ( length(prof_num_date_miss) != 0 ) {
+        
+        question = paste0("Profiles with missing date : ", paste(prof_num_date_miss, collapse = ", "), 
+                          "\nWhat should be done with them ? (0 to abandon and quit)")
+        
+        choice = my_menu(title = question,
+                         choices = c("Attempt to find a suited date for DM correction",
+                                     "Ignore the profiles (just copy them)"))
+        
+        date_list_missing = rep(NA, length(prof_num_date_miss))
+        
+        if ( choice == 0 ) {
+            return(0)
+        } else if (choice == 1) {
+            for (i in 1:length(prof_num_date_miss)) {
+                
+                date_prev = date_list[which(as.numeric(substr(prof_id[subset], 11, 13)) == (as.numeric(prof_num_date_miss[1]) - 1) )]
+                date_next = date_list[which(as.numeric(substr(prof_id[subset], 11, 13)) == (as.numeric(prof_num_date_miss[1]) + 1) )]
+                
+                question2 = c("For profile ", prof_num_date_miss[i], " :\n    Date of preceding profile : ", NA, "\n    Date of following profile : ", NA, 
+                              "\nWhat should be done with this profile ? (If any date is unknown, do not use it)")
+                
+                if (length(date_prev) != 0) {
+                    question2[4] = as.character(as.Date(date_prev, origin=as.Date("1950-01-01", tz="UTC")))
+                } else {
+                    question2[4] = "Unknown"
+                }
+                if (length(date_next) != 0) {
+                    question2[6] = as.character(as.Date(date_next, origin=as.Date("1950-01-01", tz="UTC")))
+                } else {
+                    question2[6] = "Unknown"
+                }
+                
+                question2 = paste(question2, collapse="")
+                choice2 = my_menu(title = question2,
+                                  choices = c("Use the preceding date",
+                                              "Use the following date",
+                                              "Use the interpolation of the dates",
+                                              "Ignore this profile (just copy it)"))
+                switch (choice2 + 1,
+                        return(0),
+                        { date_list_missing[i] = date_prev },
+                        { date_list_missing[i] = date_next },
+                        { date_list_missing[i] = (date_prev + date_next) / 2 }
+                )
+            }
+        }
+        
+        # move the profiles with no alternative date to the just_copy list
+        subset_copy = c(subset_copy, subset_date_miss[ which(is.na(date_list_missing)) ])
+        subset_date_miss = subset_date_miss[ which(!is.na(date_list_missing)) ]
+        date_list_missing = date_list_missing[ which(!is.na(date_list_missing)) ]
+        
+    } else {
+        cat("No profiles with missing date")
+    }
+    
+    
+    
+    
+    
+    
     ####################################
     ### Apply correction to netcdf
     ####################################
@@ -643,7 +711,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     date_update = Sys.time()
     DATE = stri_datetime_format(date_update, format="uuuuMMddHHmmss", tz="UTC")
     
-    corr_file <- function(file_name, PROFILE_DATE, path_to_netcdf) {
+    corr_file <- function(file_name, PROFILE_DATE, path_to_netcdf, just_copy=FALSE) {
     
     	path_sep = unlist(strsplit(file_name, "/"))
 
@@ -653,6 +721,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     	full_file_name_in = paste(path_to_netcdf, file_name, sep="")
     	
     	system2("cp", c(full_file_name_in, full_file_name_out))
+    	
+    	if (just_copy) { return(rep(0, 4)) }
         
     	exit = rep(NA, 4)
     	
@@ -737,8 +807,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		                   comment_dmqc_operator_PRIMARY=comment_dmqc_operator_PRIMARY, comment_dmqc_operator_PARAM=comment_dmqc_operator_PARAM, 
     		                   HISTORY_SOFTWARE=HISTORY_SOFTWARE, HISTORY_SOFTWARE_RELEASE=HISTORY_SOFTWARE_RELEASE, param_adjusted=corr_array, 
     		                   param_adjusted_qc=corr_qc_array, param_adjusted_error=corr_error_array)
-    		
-    		
+
     	}
     	
     	return(exit)	
@@ -751,6 +820,15 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     
     corr_all = mcmapply(corr_file, file_name=files_list, PROFILE_DATE=date_list, mc.cores=n_cores, SIMPLIFY=FALSE,
     							MoreArgs=list(path_to_netcdf=path_to_netcdf))
+    
+    if ( length(subset_date_miss) != 0 ) {
+        corr_date_miss = mcmapply(corr_file, file_name=files[subset_date_miss], PROFILE_DATE=date_list_missing, mc.cores=n_cores, SIMPLIFY=FALSE,
+                                    MoreArgs=list(path_to_netcdf=path_to_netcdf))
+    }
+    
+    corr_copy = mcmapply(corr_file, file_name=files[subset_copy], mc.cores=n_cores, SIMPLIFY=FALSE,
+                         MoreArgs=list(path_to_netcdf=path_to_netcdf, PROFILE_DATE=NA))
+    
 
     cat("DONE\n")
     
