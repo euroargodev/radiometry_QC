@@ -61,7 +61,7 @@ get_profile_match <- function(file_name, param_name, path_to_netcdf, PROFILE_DAT
     
     match = get_Ts_match(path_to_netcdf=path_to_netcdf, file_name=file_name, PARAM_NAME=param_name)
     
-    match_not_na = which(!is.na(match$PARAM) & !is.na(match$Ts))
+    match_not_na = which(!is.na(match$PARAM) & !is.na(match$Ts) & !is.na(match$PRES))
     
     ### correct for drift	
     param_undrifted = as.numeric( match$PARAM - drift_A - drift_C * PROFILE_DATE 
@@ -73,8 +73,10 @@ get_profile_match <- function(file_name, param_name, path_to_netcdf, PROFILE_DAT
         MATCH_Ts = match$Ts[match_not_na]
         MATCH_date = rep(PROFILE_DATE, length(match_not_na))
         MATCH_name = rep(param_name, length(match_not_na))
+        MATCH_pres = match$PRES[match_not_na]
         
-        return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name))
+        return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name,
+                    "MATCH_pres"=MATCH_pres))
         
     } 
     
@@ -99,12 +101,14 @@ get_profile_match <- function(file_name, param_name, path_to_netcdf, PROFILE_DAT
                 MATCH_date = rep(PROFILE_DATE, length(subsel_dark))
                 MATCH_name = rep(param_name, length(subsel_dark))
                 MATCH_darkmed = median(MATCH)
+                MATCH_pres = match$PRES[subsel_dark]
+                
                 return(list("MATCH"=MATCH, "MATCH_Ts"=MATCH_Ts, "MATCH_date"=MATCH_date, "MATCH_name"=MATCH_name,
-                            "MATCH_darkmed"=MATCH_darkmed, "MATCH_which"=subsel_dark))
+                            "MATCH_darkmed"=MATCH_darkmed, "MATCH_which"=subsel_dark, "MATCH_pres"=MATCH_pres))
             }
         }
         return(list("MATCH"=NULL, "MATCH_Ts"=NULL, "MATCH_date"=NULL, "MATCH_name"=NULL, "MATCH_darkmed"=NULL,
-                    "MATCH_which"=NULL))
+                    "MATCH_which"=NULL, "MATCH_pres"=NULL))
     }
     
     if (method == "drift") {

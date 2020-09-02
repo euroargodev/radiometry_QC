@@ -396,7 +396,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         choice = my_menu(title = "What is the next step ? (0 to abandon and quit)",
                          choices = c("Continue with correction from method A",
                                      "Continue with correction from method B",
-                                     "Change to quadratic fits for some parameters"))
+                                     "Change to quadratic fits for some parameters",
+                                     "Continue without a drift correction"))
         switch (choice + 1,
             return(0),
             
@@ -412,6 +413,15 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             B_axis_drift_corr = B_axis_DRIFT
             C_axis_drift_corr = C_axis_DRIFT
             Q_axis_drift_corr = Q_axis_DRIFT
+            break},
+            
+            { },
+            
+            {fitted_coeff_drift_corr = NULL
+            A_axis_drift_corr = c(0, 0, 0, 0)
+            B_axis_drift_corr = c(0, 0, 0, 0)
+            C_axis_drift_corr = c(0, 0, 0, 0)
+            Q_axis_drift_corr = c(0, 0, 0, 0)
             break}
         )
         
@@ -480,12 +490,14 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     
     
     PAR_dataf = data.frame("PARAM"=unlist(NIGHT_MATCH[1,]), "PARAM_Ts"=unlist(NIGHT_MATCH[2,]), 
-    					   "PARAM_date"=unlist(NIGHT_MATCH[3,]), "PARAM_name"=unlist(NIGHT_MATCH[4,]))
+    					   "PARAM_date"=unlist(NIGHT_MATCH[3,]), "PARAM_name"=unlist(NIGHT_MATCH[4,]),
+    					   "PARAM_pres"=unlist(NIGHT_MATCH[5,]))
     DAY_dataf = data.frame("PARAM"=unlist(DAY_MATCH[1,]), 
     						"PARAM_Ts"=unlist(DAY_MATCH[2,]), 
     					   	"PARAM_date"=unlist(DAY_MATCH[3,]), 
     						"PARAM_name"=unlist(DAY_MATCH[4,]),
-    						"is_dark_outlier"=is_dark_outlier_full)
+    						"is_dark_outlier"=is_dark_outlier_full,
+    						"PARAM_pres"=unlist(DAY_MATCH[7,]))
     
     PAR_dataf$is_greylisted = mapply(is_greylisted, julian_day=PAR_dataf$PARAM_date,
     								PARAMETER_NAME=as.character(PAR_dataf$PARAM_name),
@@ -494,51 +506,6 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     								PARAMETER_NAME=as.character(DAY_dataf$PARAM_name),
     								MoreArgs=list(WMO=WMO))
     
-    cat("DONE\nFitting Ts to radiometry parameters...")
-    
-    ###########################
-    ### Start of Ts fitting
-    ###########################
-    
-    fitted_coeff = NULL
-    A_axis = rep(NA, 4)
-    B_axis = rep(NA, 4)
-    fitted_coeff_day = NULL
-    A_axis_day = rep(NA, 4)
-    B_axis_day = rep(NA, 4)
-    for (i in 1:length(PARAM_NAMES)) {
-        
-        ## night
-    	subset_PAR = which(PAR_dataf$PARAM_name==PARAM_NAMES[i] & !is.na(PAR_dataf$PARAM_Ts)
-    						& !PAR_dataf$is_greylisted)
-    
-    	fit_AB = lm(PARAM ~ PARAM_Ts, data=PAR_dataf, subset=subset_PAR) 
-    
-    	fitted_coeff[[PARAM_NAMES[i]]] = fit_AB$coefficients
-    	A_axis[i] = fit_AB$coefficients[[1]]
-    	B_axis[i] = fit_AB$coefficients[[2]]
-    
-    	
-    	## day
-    	subset_DAY = which(DAY_dataf$PARAM_name==PARAM_NAMES[i] & !is.na(DAY_dataf$PARAM_Ts)
-    						& !DAY_dataf$is_greylisted & !DAY_dataf$is_dark_outlier)
-    
-    	fit_param = DAY_dataf$PARAM[subset_DAY]
-    	fit_Ts = DAY_dataf$PARAM_Ts[subset_DAY]
-    	
-    	fit_param = fit_param[order(fit_Ts)]
-    	fit_Ts = fit_Ts[order(fit_Ts)]
-    	
-    	run_min = running(fit_param, fun=min, width=51, pad=TRUE)
-    	
-    	data_run = data.frame("run_min"=run_min, "fit_Ts"=fit_Ts)
-    	fit_AB_day = lm(run_min ~ fit_Ts, data=data_run)
-    
-    	fitted_coeff_day[[PARAM_NAMES[i]]] = fit_AB_day$coefficients
-    	A_axis_day[i] = fit_AB_day$coefficients[[1]]
-    	B_axis_day[i] = fit_AB_day$coefficients[[2]]
-    	
-    }
     
     cat("DONE\nExtracting full Ts range...")
     
@@ -559,76 +526,146 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     
     Ts_range = range(c(TEST_dataf$PARAM_Ts), na.rm=T)
     
-    cat("DONE\nCreating Ts/Irr plots...")
-
-    data_fit = data.frame(
-    	PARAM_name = rep(PARAM_NAMES, each=2),
-    	x = rep(Ts_range, 4),
-    	y = rep(A_axis, each=2) + rep(B_axis, each=2) * rep(Ts_range, 4)
-    )
-    data_fit_day = data.frame(
-    	PARAM_name = rep(PARAM_NAMES, each=2),
-    	x = rep(Ts_range, 4),
-    	y = rep(A_axis_day, each=2) + rep(B_axis_day, each=2) * rep(Ts_range, 4)
-    )
-    
-    g1 = ggplot(na.omit(PAR_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
-        geom_point(data=function(x){x[!x$is_greylisted, ]}) +
-        #geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
-        scale_color_viridis() +
-        facet_wrap(~PARAM_name, scale="free_y") +
-        labs (x="Sensor temperature", y="Irradiance", colour="Julian day", 
-              title="Data from night profiles")
-    g1_day = ggplot(na.omit(DAY_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_date, group=PARAM_name)) +
-        geom_point(data=function(x){x[!x$is_greylisted & !x$is_dark_outlier, ]}) +
-        #geom_point(data=function(x){x[x$is_greylisted & !x$is_dark_outlier, ]}, color="red") +
-        scale_color_viridis() +
-        facet_wrap(~PARAM_name, scale="free_y") +
-        labs (x="Sensor temperature", y="Irradiance", colour="Julian day", 
-              title="Data selected from day profiles")
-    
-    g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
-    g3 = g2 + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
-    
-    g2_day = g1_day + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
-    g3_day = g2_day + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red") 
-    
-    x11(xpos=0, ypos=0)
-    plot(g2)
-    x11(xpos=0, ypos=-1)
-    plot(g3)
-    x11(xpos=-1, ypos=0)
-    plot(g2_day)
-    x11(xpos=-1, ypos=-1)
-    plot(g3_day)
-    
-    plot_name=paste0(WMO, "_regr_day.png")
-    png(filename=plot_name, width=600, height=600)
-    plot(g3_day)
-    dev.off()
-    
-    plot_name=paste0(WMO, "_regr_night.png")
-    png(filename=plot_name, width=600, height=600)
-    plot(g3)
-    dev.off()
-    
     cat("DONE\n")
     
-    choice = my_menu(title = "Which correction should be used ? (0 to abandon and quit)",
-                     choices = c("Continue with correction from night method",
-                                 "Continue with correction from day method"))
+    ###########################
+    ### Start of Ts fitting
+    ###########################
     
-    switch (choice + 1,
-            return(0),
+    repeat {
+    
+        cat("Fitting Ts to radiometry parameters...")
+        
+        pres_cutoff = -Inf
+        
+        fitted_coeff = NULL
+        A_axis = rep(NA, 4)
+        B_axis = rep(NA, 4)
+        fitted_coeff_day = NULL
+        A_axis_day = rep(NA, 4)
+        B_axis_day = rep(NA, 4)
+        for (i in 1:length(PARAM_NAMES)) {
             
-            {fitted_coeff_corr = fitted_coeff
-            A_axis_corr = A_axis
-            B_axis_corr = B_axis},
-            
-            {fitted_coeff_corr = fitted_coeff_day
-            A_axis_corr = A_axis_day
-            B_axis_corr = B_axis_day}
-    )
+            ## night
+        	subset_PAR = which(PAR_dataf$PARAM_name==PARAM_NAMES[i] & !is.na(PAR_dataf$PARAM_Ts)
+        						& !PAR_dataf$is_greylisted & PAR_dataf$PARAM_pres>pres_cutoff)
+        
+        	fit_AB = lm(PARAM ~ PARAM_Ts, data=PAR_dataf, subset=subset_PAR) 
+        	
+        	fitted_coeff[[PARAM_NAMES[i]]] = fit_AB$coefficients
+        	A_axis[i] = fit_AB$coefficients[[1]]
+        	B_axis[i] = fit_AB$coefficients[[2]]
+        	
+        	## day
+        	subset_DAY = which(DAY_dataf$PARAM_name==PARAM_NAMES[i] & !is.na(DAY_dataf$PARAM_Ts)
+        						& !DAY_dataf$is_greylisted & !DAY_dataf$is_dark_outlier
+        						& PAR_dataf$PARAM_pres>pres_cutoff)
+        
+        	fit_param = DAY_dataf$PARAM[subset_DAY]
+        	fit_Ts = DAY_dataf$PARAM_Ts[subset_DAY]
+        	
+        	fit_param = fit_param[order(fit_Ts)]
+        	fit_Ts = fit_Ts[order(fit_Ts)]
+        	
+        	run_min = running(fit_param, fun=min, width=51, pad=TRUE)
+        	
+        	data_run = data.frame("run_min"=run_min, "fit_Ts"=fit_Ts)
+        	fit_AB_day = lm(run_min ~ fit_Ts, data=data_run)
+        
+        	fitted_coeff_day[[PARAM_NAMES[i]]] = fit_AB_day$coefficients
+        	A_axis_day[i] = fit_AB_day$coefficients[[1]]
+        	B_axis_day[i] = fit_AB_day$coefficients[[2]]
+        	
+        }
+        
+        
+        
+        cat("DONE\nCreating Ts/Irr plots...")
+    
+        data_fit = data.frame(
+        	PARAM_name = rep(PARAM_NAMES, each=2),
+        	x = rep(Ts_range, 4),
+        	y = rep(A_axis, each=2) + rep(B_axis, each=2) * rep(Ts_range, 4)
+        )
+        data_fit_day = data.frame(
+        	PARAM_name = rep(PARAM_NAMES, each=2),
+        	x = rep(Ts_range, 4),
+        	y = rep(A_axis_day, each=2) + rep(B_axis_day, each=2) * rep(Ts_range, 4)
+        )
+        
+        g1 = ggplot(na.omit(PAR_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_pres, group=PARAM_name)) +
+            geom_point(data=function(x){x[!x$is_greylisted & x$PARAM_pres>pres_cutoff, ]}) +
+            #geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
+            scale_color_viridis() +
+            facet_wrap(~PARAM_name, scale="free_y") +
+            labs (x="Sensor temperature", y="Irradiance", colour="Julian day", 
+                  title="Data from night profiles")
+        g1_day = ggplot(na.omit(DAY_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_pres, group=PARAM_name)) +
+            geom_point(data=function(x){x[!x$is_greylisted & !x$is_dark_outlier & x$PARAM_pres>pres_cutoff, ]}) +
+            #geom_point(data=function(x){x[x$is_greylisted & !x$is_dark_outlier, ]}, color="red") +
+            scale_color_viridis() +
+            facet_wrap(~PARAM_name, scale="free_y") +
+            labs (x="Sensor temperature", y="Irradiance", colour="Julian day", 
+                  title="Data selected from day profiles")
+        
+        g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
+        g3 = g2 + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
+        
+        g2_day = g1_day + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
+        g3_day = g2_day + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red") 
+        
+        x11(xpos=0, ypos=0)
+        plot(g2)
+        x11(xpos=0, ypos=-1)
+        plot(g3)
+        x11(xpos=-1, ypos=0)
+        plot(g2_day)
+        x11(xpos=-1, ypos=-1)
+        plot(g3_day)
+        
+        plot_name=paste0(WMO, "_regr_day.png")
+        png(filename=plot_name, width=600, height=600)
+        plot(g3_day)
+        dev.off()
+        
+        plot_name=paste0(WMO, "_regr_night.png")
+        png(filename=plot_name, width=600, height=600)
+        plot(g3)
+        dev.off()
+        
+        cat("DONE\n")
+        
+        choice = my_menu(title = "Which correction should be used ? (0 to abandon and quit)",
+                         choices = c("Continue with correction from night method",
+                                     "Continue with correction from day method",
+                                     "Add or change the pressure cutoff for data selection"))
+        
+        switch (choice + 1,
+                return(0),
+                
+                {fitted_coeff_corr = fitted_coeff
+                A_axis_corr = A_axis
+                B_axis_corr = B_axis
+                break},
+                
+                {fitted_coeff_corr = fitted_coeff_day
+                A_axis_corr = A_axis_day
+                B_axis_corr = B_axis_day
+                break},
+                
+                { }
+        )
+        
+        cat("New pressure cutoff in decibars: ")
+        
+        if (interactive()) {
+            input <- as.numeric(readLines(stdin(), 1))
+        } else {
+            input <- as.numeric(readLines(file("stdin"), 1))
+        }
+ 
+    }
+        
     
     choice = my_menu(title = "What QC flag is the DM allowed to have at best in the dark section of profiles ? (0 to abandon and quit)",
                      choices = c("Good",
