@@ -368,7 +368,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             plot(g4)
             dev.off()
         } else {
-            cat("\nNo valid drift data points were found...")
+            cat("No valid drift data points were found...")
         }
         if ( dim(DRIFT_dataf)[1] != 0 ) {
             x11(xpos=-1, ypos=0)
@@ -388,7 +388,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             plot(g6)
             dev.off()
         } else {
-            cat("\nThe alternative drift method found no valid dark data points...")
+            cat("The alternative drift method found no valid dark data points...")
         }
         
         cat("DONE\n")
@@ -532,11 +532,11 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     ### Start of Ts fitting
     ###########################
     
+    pres_cutoff = -Inf
+    
     repeat {
     
         cat("Fitting Ts to radiometry parameters...")
-        
-        pres_cutoff = -Inf
         
         fitted_coeff = NULL
         A_axis = rep(NA, 4)
@@ -559,7 +559,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         	## day
         	subset_DAY = which(DAY_dataf$PARAM_name==PARAM_NAMES[i] & !is.na(DAY_dataf$PARAM_Ts)
         						& !DAY_dataf$is_greylisted & !DAY_dataf$is_dark_outlier
-        						& PAR_dataf$PARAM_pres>pres_cutoff)
+        						& DAY_dataf$PARAM_pres>pres_cutoff)
         
         	fit_param = DAY_dataf$PARAM[subset_DAY]
         	fit_Ts = DAY_dataf$PARAM_Ts[subset_DAY]
@@ -659,13 +659,16 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         cat("New pressure cutoff in decibars: ")
         
         if (interactive()) {
-            input <- as.numeric(readLines(stdin(), 1))
+            pres_cutoff <- as.numeric(readLines(stdin(), 1))
         } else {
-            input <- as.numeric(readLines(file("stdin"), 1))
+            pres_cutoff <- as.numeric(readLines(file("stdin"), 1))
         }
+        
+        while(dev.cur() > 1) {dev.off()}
  
     }
         
+    while(dev.cur() > 1) {dev.off()}
     
     choice = my_menu(title = "What QC flag is the DM allowed to have at best in the dark section of profiles ? (0 to abandon and quit)",
                      choices = c("Good",
