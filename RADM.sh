@@ -17,7 +17,7 @@ Usage: $0 -W <WMO_number> [-m <n_cores>]
 
 -W <WMO_number> : Do the delayed mode on all profiles of a float identified with its
                   7 digits WMO number.
-[-m <n_cores>] : Define the number of cores to use for parallelization. By default DMMC
+[-m <n_cores>] : Define the number of cores to use for parallelization. By default RADM
                  uses all available cores.
 
 #########################################################################################
