@@ -596,16 +596,16 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         g1 = ggplot(na.omit(PAR_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_pres, group=PARAM_name)) +
             geom_point(data=function(x){x[!x$is_greylisted & x$PARAM_pres>pres_cutoff, ]}) +
             #geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
-            scale_color_viridis() +
+            scale_color_viridis(trans='reverse') +
             facet_wrap(~PARAM_name, scale="free_y") +
-            labs (x="Sensor temperature", y="Irradiance", colour="Julian day", 
+            labs (x="Sensor temperature", y="Irradiance", colour="Pressure (db)", 
                   title="Data from night profiles")
         g1_day = ggplot(na.omit(DAY_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_pres, group=PARAM_name)) +
             geom_point(data=function(x){x[!x$is_greylisted & !x$is_dark_outlier & x$PARAM_pres>pres_cutoff, ]}) +
             #geom_point(data=function(x){x[x$is_greylisted & !x$is_dark_outlier, ]}, color="red") +
-            scale_color_viridis() +
+            scale_color_viridis(trans='reverse') +
             facet_wrap(~PARAM_name, scale="free_y") +
-            labs (x="Sensor temperature", y="Irradiance", colour="Julian day", 
+            labs (x="Sensor temperature", y="Irradiance", colour="Pressure (db)", 
                   title="Data selected from day profiles")
         
         g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
@@ -738,9 +738,6 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     } else {
         cat("No profiles with missing date")
     }
-    
-    
-    
     
     
     
