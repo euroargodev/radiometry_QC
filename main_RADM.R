@@ -78,6 +78,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     subset_date_miss = which( wod==WMO & substr(prof_id,14,14)!="D" & is.na(prof_date) & grepl("DOWNWELLING_PAR", variables) )
     subset_copy = which( wod==WMO & ( substr(prof_id,14,14)=="D" | !grepl("DOWNWELLING_PAR", variables) ) )
     
+    subset_pos_miss = which( wod==WMO & substr(prof_id,14,14)!="D" & grepl("DOWNWELLING_PAR", variables) & (is.na(lat) | is.na(lon)) )
+    
     profile_list = substr(prof_id[subset], 3, 14)
     files_list = files[subset]
     lat_list = lat[subset]
@@ -736,7 +738,15 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         date_list_missing = date_list_missing[ which(!is.na(date_list_missing)) ]
         
     } else {
-        cat("No profiles with missing date")
+        cat("No profiles with missing date\n")
+    }
+    
+    ### Mention missing positions to user
+    
+    if ( length(subset_pos_miss) != 0 ) {
+        cat(paste0("Profiles with missing position : ", paste(substr(prof_id[subset_pos_miss], 11, 13), collapse = ", "), "\n"))
+    } else {
+        cat("No profiles with missing position\n")
     }
     
     
