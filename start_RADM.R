@@ -67,7 +67,6 @@ if (multi_core == "NA") {
 
 if (plot_mode) {
     exit = plot_corr_wrapper(WMO, index_ifremer, path_to_netcdf, n_cores=n_cores, pres_zoom=zoom_plot)
-    print(exit)
 } else {
     ### Compute and write delayed modes
     exit = main_RADM(WMO=WMO, index_ifremer=index_ifremer, index_greylist=index_greylist, path_to_netcdf=path_to_netcdf, n_cores=n_cores)

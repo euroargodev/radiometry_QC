@@ -310,11 +310,12 @@ plot_corr_wrapper <- function(WMO, index_ifremer, path_to_netcdf, n_cores=detect
     wod = ident[,2] #retrieve the WMO of all profiles as a vector
     prof_id = ident[,4] #retrieve all profiles  name as a vector
     
-    profile_list = paste(path_to_netcdf, files[which(substr(prof_id,3,9)==WMO)], sep="")
+    #profile_list = paste(path_to_netcdf, files[which(substr(prof_id,3,9)==WMO)], sep="")
     
     files_corr = files[which(substr(prof_id,3,9)==WMO & substr(prof_id,14,14)==".")]
     for (i in 1:length(files_corr)) {
         path = unlist(strsplit(files_corr[i], "/"))
+        str_sub(path[4], 2, 2) = "D"
         files_corr[i] = paste(path[1], path[2], path[3], "RADM/RADM_profiles", path[4], sep="/")
     }
     files_corr = paste(path_to_netcdf, files_corr, sep="")
@@ -332,7 +333,7 @@ plot_QC_wrapper <- function(WMO, index_ifremer, path_to_netcdf, n_cores=detectCo
     wod = ident[,2] #retrieve the WMO of all profiles as a vector
     prof_id = ident[,4] #retrieve all profiles  name as a vector
     
-    profile_list = paste(path_to_netcdf, files[which(substr(prof_id,3,9)==WMO)], sep="")
+    #profile_list = paste(path_to_netcdf, files[which(substr(prof_id,3,9)==WMO)], sep="")
     
     files_corr = files[which(substr(prof_id,3,9)==WMO & substr(prof_id,14,14)==".")]
     for (i in 1:length(files_corr)) {
