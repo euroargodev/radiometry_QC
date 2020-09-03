@@ -797,15 +797,14 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		
     		### Error
     		
-    		corr_error = 0.2*abs(corr) #TODO
+    		#corr_error = 0.2*abs(corr) #TODO
     		
     		corr_error_array = array(NA, c(matchup$n_levels, matchup$n_prof))
-    		corr_error_array[, matchup$id_prof] = corr_error
+    		#corr_error_array[, matchup$id_prof] = corr_error
             
     		### Scientific comment
             
-            scientific_comment="test" #TODO
-    		
+            scientific_comment = paste0(PARAM_NAMES[i], " dark correction. Uses JULD to correct drift and SENSOR_TEMP to correct temperature variance. SENSOR_TEMP is reconstructed from the TEMP axis of the core file following [https://doi.org/10.1117/12.2504241] with delta_t=60s and k=12h^-1")
     		### Scientific coefficient
             
             A_total = A_axis_drift_corr[i] + A_axis_corr[i]
