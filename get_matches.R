@@ -54,7 +54,7 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
     fitted_Ts = sensor_temp(TEMP, PRES_C, PRES_B)
     
     return(list("PARAM"=PARAM, "Ts"=fitted_Ts, "PRES"=PRES_B, "id_prof"=id_prof_B, "n_prof"=n_prof_B, "n_levels"=n_levels_B,
-                "PARAM_QC"=PARAM_QC))
+                "PARAM_QC"=PARAM_QC, "PRES_B_QC"=PRES_B_QC))
 }
 
 get_profile_match <- function(file_name, param_name, path_to_netcdf, PROFILE_DATE, method="night", drift_A=0, drift_C=0, drift_Q=0) {

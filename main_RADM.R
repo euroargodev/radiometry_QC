@@ -761,6 +761,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     corr_file <- function(file_name, PROFILE_DATE, path_to_netcdf, just_copy=FALSE) {
     
     	path_sep = unlist(strsplit(file_name, "/"))
+    	
+    	if (!just_copy) { str_sub(path_sep[4], 2, 2) = "D" }
 
     	file_name_out = paste(path_sep[1], path_sep[2], path_sep[3], "RADM/RADM_profiles", path_sep[4], sep="/")
 
@@ -786,8 +788,9 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     	    corr_qc = matchup$PARAM_QC
     	    
     	    corr_qc[match_day$MATCH_which] = rep(as.character(best_QC), length(match_day$MATCH_which)) #if which==NULL --> no change
-    	    corr_qc[which(matchup$PARAM_QC=="3")] = "3"
-    	    corr_qc[which(matchup$PARAM_QC=="4")] = "4"
+    	    corr_qc[which(matchup$PARAM_QC=="3" | matchup$PARAM_QC=="4")] = "4"
+    	    corr_qc[which(matchup$PRES_B_QC=="3" | matchup$PRES_B_QC=="4")] = "4"
+    	    corr_qc[which(is.na(matchup$Ts) & !is.na(matchup$PARAM))] = "4"
     	    corr_qc_word = paste(corr_qc, collapse="")	
     	    
     	    blank_qc = paste(rep(" ", matchup$n_levels), collapse="")
@@ -808,9 +811,11 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		### Error
     		
     		#corr_error = 0.2*abs(corr) #TODO
+    		corr_error = rep(NA, length(corr))
+    		corr_error[which(!is.na(corr))] = -1
     		
     		corr_error_array = array(NA, c(matchup$n_levels, matchup$n_prof))
-    		#corr_error_array[, matchup$id_prof] = corr_error
+    		corr_error_array[, matchup$id_prof] = corr_error
             
     		### Scientific comment
             
@@ -844,7 +849,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		
     		### HISTORY_SOFTWARE_RELEASE
     		
-            HISTORY_SOFTWARE_RELEASE = "0.00"
+            HISTORY_SOFTWARE_RELEASE = "1.00"
     		
     		### write to file
     		
@@ -873,7 +878,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     }
     
     corr_copy = mcmapply(corr_file, file_name=files[subset_copy], mc.cores=n_cores, SIMPLIFY=FALSE,
-                         MoreArgs=list(path_to_netcdf=path_to_netcdf, PROFILE_DATE=NA))
+                         MoreArgs=list(path_to_netcdf=path_to_netcdf, PROFILE_DATE=NA, just_copy=TRUE))
     
 
     cat("DONE\n")
