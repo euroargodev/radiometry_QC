@@ -8,6 +8,8 @@ uf = commandArgs(trailingOnly = TRUE)
 ### get all arguments
 WMO = uf[1]
 multi_core = uf[2]
+plot_mode = as.logical(uf[3])
+zoom_plot = as.logical(uf[4])
 
 ### Check conflicting options
 if ( WMO=="NA" ) {
@@ -32,14 +34,19 @@ suppressPackageStartupMessages({
     library(gridExtra)
     library(gtools)
     library(nortest)
+    library(tidyr)
+    library(dplyr)
 })
     
-source(paste(path_to_source, "possol.R", sep=""))
-source(paste(path_to_source, "sensor_temp.R", sep=""))
-source(paste(path_to_source, "main_RADM.R", sep=""))
-source(paste(path_to_source, "get_matches.R", sep=""))
-source(paste(path_to_source, "write_DM.R", sep=""))
-source(paste(path_to_source, "increment_N_CALIB.R", sep=""))
+source(paste0(path_to_source, "possol.R"))
+source(paste0(path_to_source, "sensor_temp.R"))
+source(paste0(path_to_source, "main_RADM.R"))
+source(paste0(path_to_source, "get_matches.R"))
+source(paste0(path_to_source, "write_DM.R"))
+source(paste0(path_to_source, "increment_N_CALIB.R"))
+source(paste0(path_to_source, "RT_QC_radiometry_function_oao_2.R"))
+source(paste0(path_to_source, "plots.R"))
+
 
 cat("DONE\nImporting bio index and greylist...")
 
@@ -58,8 +65,11 @@ if (multi_core == "NA") {
 }
 
 
-
-### Compute and write delayed modes
-exit = main_RADM(WMO=WMO, index_ifremer=index_ifremer, index_greylist=index_greylist, path_to_netcdf=path_to_netcdf, n_cores=n_cores)
-
+if (plot_mode) {
+    exit = plot_corr_wrapper(WMO, index_ifremer, path_to_netcdf, n_cores=n_cores, pres_zoom=zoom_plot)
+    print(exit)
+} else {
+    ### Compute and write delayed modes
+    exit = main_RADM(WMO=WMO, index_ifremer=index_ifremer, index_greylist=index_greylist, path_to_netcdf=path_to_netcdf, n_cores=n_cores)
+}
 
