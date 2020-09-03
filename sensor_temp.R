@@ -1,7 +1,9 @@
 sensor_temp <- function(TEMP, PRES_TEMP, PRES_PARAM) {
 	
-	k = 0.19/60 # s^-1
-	delta_t = 54 # s
+	#k = 0.19/60 # s^-1
+	#delta_t = 54 # s
+	k = 12/3600 # s^-1
+	delta_t = 60 # s
 	asc_speed = 0.1 # m/s
 
 	Tw = rev(TEMP[!is.na(TEMP) & !is.na(PRES_TEMP)])
