@@ -192,9 +192,6 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     					   	"PARAM_date"=unlist(DRIFT_MATCH[3,]), 
     						"PARAM_name"=unlist(DRIFT_MATCH[4,]))
     
-    #plot(T_PAR[nna], T_380[nna])
-    #lm(T_380[nna] ~ 0 + T_PAR[nna])$coefficients
-    
     cat("DONE\nFlagging outliers and greylist...")
     
     ### remove drift outliers
@@ -462,13 +459,13 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     Q_axis_drift_day_PARALLEL = rep(Q_axis_drift_corr, each=length(files_day))
     
     NIGHT_MATCH = mcmapply(get_profile_match, file_name=files_night_PARALLEL, param_name=PARAM_NAMES_night_PARALLEL,
-    						PROFILE_DATE=date_night_PARALLEL, path_to_netcdf=path_to_netcdf, drift_A=A_axis_drift_night_PARALLEL,
+    						PROFILE_DATE=date_night_PARALLEL, drift_A=A_axis_drift_night_PARALLEL,
     						drift_C=C_axis_drift_night_PARALLEL, drift_Q=Q_axis_drift_night_PARALLEL,
-    						mc.cores=n_cores, USE.NAMES=FALSE)
+    						mc.cores=n_cores, USE.NAMES=FALSE, MoreArgs=list(path_to_netcdf=path_to_netcdf))
     DAY_MATCH = mcmapply(get_profile_match, file_name=files_day_PARALLEL, param_name=PARAM_NAMES_day_PARALLEL,
-    						PROFILE_DATE=date_day_PARALLEL, path_to_netcdf=path_to_netcdf, drift_A=A_axis_drift_day_PARALLEL,
+    						PROFILE_DATE=date_day_PARALLEL, drift_A=A_axis_drift_day_PARALLEL,
     						drift_C=C_axis_drift_day_PARALLEL, drift_Q=Q_axis_drift_day_PARALLEL,
-    						mc.cores=n_cores, USE.NAMES=FALSE, MoreArgs=list(method="day"))
+    						mc.cores=n_cores, USE.NAMES=FALSE, MoreArgs=list(method="day", path_to_netcdf=path_to_netcdf))
     
     cat("DONE\nFlagging greylisted profiles and outliers in day profiles...")
     
@@ -491,19 +488,25 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     is_dark_outlier_full = rep(is_dark_outlier, times=all_lengths)
     
     
-    PAR_dataf = data.frame("PARAM"=unlist(NIGHT_MATCH[1,]), "PARAM_Ts"=unlist(NIGHT_MATCH[2,]), 
-    					   "PARAM_date"=unlist(NIGHT_MATCH[3,]), "PARAM_name"=unlist(NIGHT_MATCH[4,]),
-    					   "PARAM_pres"=unlist(NIGHT_MATCH[5,]))
+    if (length(NIGHT_MATCH) == 0) { 
+        PAR_dataf = data.frame("PARAM"=numeric(0), "PARAM_Ts"=numeric(0), 
+                               "PARAM_date"=numeric(0), "PARAM_name"=character(0),
+                               "PARAM_pres"=numeric(0), "is_greylisted"=logical(0))
+    } else {
+        PAR_dataf = data.frame("PARAM"=unlist(NIGHT_MATCH[1,]), "PARAM_Ts"=unlist(NIGHT_MATCH[2,]), 
+    	    				   "PARAM_date"=unlist(NIGHT_MATCH[3,]), "PARAM_name"=unlist(NIGHT_MATCH[4,]),
+    		    			   "PARAM_pres"=unlist(NIGHT_MATCH[5,]))
+        PAR_dataf$is_greylisted = mapply(is_greylisted, julian_day=PAR_dataf$PARAM_date,
+                                         PARAMETER_NAME=as.character(PAR_dataf$PARAM_name),
+                                         MoreArgs=list(WMO=WMO))
+    }
+    
     DAY_dataf = data.frame("PARAM"=unlist(DAY_MATCH[1,]), 
     						"PARAM_Ts"=unlist(DAY_MATCH[2,]), 
     					   	"PARAM_date"=unlist(DAY_MATCH[3,]), 
     						"PARAM_name"=unlist(DAY_MATCH[4,]),
     						"is_dark_outlier"=is_dark_outlier_full,
     						"PARAM_pres"=unlist(DAY_MATCH[7,]))
-    
-    PAR_dataf$is_greylisted = mapply(is_greylisted, julian_day=PAR_dataf$PARAM_date,
-    								PARAMETER_NAME=as.character(PAR_dataf$PARAM_name),
-    								MoreArgs=list(WMO=WMO))
     DAY_dataf$is_greylisted = mapply(is_greylisted, julian_day=DAY_dataf$PARAM_date,
     								PARAMETER_NAME=as.character(DAY_dataf$PARAM_name),
     								MoreArgs=list(WMO=WMO))
@@ -551,12 +554,16 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             ## night
         	subset_PAR = which(PAR_dataf$PARAM_name==PARAM_NAMES[i] & !is.na(PAR_dataf$PARAM_Ts)
         						& !PAR_dataf$is_greylisted & PAR_dataf$PARAM_pres>pres_cutoff)
+        	
+        	if ( length(subset_PAR)==0 ) { next }
         
         	fit_AB = lm(PARAM ~ PARAM_Ts, data=PAR_dataf, subset=subset_PAR) 
         	
         	fitted_coeff[[PARAM_NAMES[i]]] = fit_AB$coefficients
         	A_axis[i] = fit_AB$coefficients[[1]]
         	B_axis[i] = fit_AB$coefficients[[2]]
+        }
+        for (i in 1:length(PARAM_NAMES)) {
         	
         	## day
         	subset_DAY = which(DAY_dataf$PARAM_name==PARAM_NAMES[i] & !is.na(DAY_dataf$PARAM_Ts)
