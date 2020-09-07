@@ -231,20 +231,20 @@ plot_corr <- function(filename, pres_zoom=FALSE) {
 
 	x_limits[[1]] = c(
 		min(min(PAR,na.rm=T), min(PAR_ADJUSTED, na.rm=T)), 
-		max(2*median(PAR, na.rm=T) - min(PAR,na.rm=T), 
-			2*median(PAR_ADJUSTED, na.rm=T) - min(PAR_ADJUSTED, na.rm=T)))
+		max(2*quantile(PAR, 1/4, na.rm=T) - min(PAR,na.rm=T), 
+			2*quantile(PAR_ADJUSTED, 1/4, na.rm=T) - min(PAR_ADJUSTED, na.rm=T)))
 	x_limits[[2]] = c(
 		min(min(IRR_380,na.rm=T), min(IRR_380_ADJUSTED, na.rm=T)), 
-		max(2*median(IRR_380, na.rm=T) - min(IRR_380, na.rm=T), 
-			2*median(IRR_380_ADJUSTED, na.rm=T) - min(IRR_380_ADJUSTED, na.rm=T)))
+		max(2*quantile(IRR_380, 1/4, na.rm=T) - min(IRR_380, na.rm=T), 
+			2*quantile(IRR_380_ADJUSTED, 1/4, na.rm=T) - min(IRR_380_ADJUSTED, na.rm=T)))
 	x_limits[[3]] = c(
 		min(min(IRR_412,na.rm=T), min(IRR_412_ADJUSTED, na.rm=T)), 
-		max(2*median(IRR_412, na.rm=T) - min(IRR_412,na.rm=T), 
-			2*median(IRR_412_ADJUSTED, na.rm=T) - min(IRR_412_ADJUSTED, na.rm=T)))
+		max(2*quantile(IRR_412, 1/4, na.rm=T) - min(IRR_412,na.rm=T), 
+			2*quantile(IRR_412_ADJUSTED, 1/4, na.rm=T) - min(IRR_412_ADJUSTED, na.rm=T)))
 	x_limits[[4]] = c(
 		min(min(IRR_490,na.rm=T), min(IRR_490_ADJUSTED, na.rm=T)), 
-		max(2*median(IRR_490, na.rm=T) - min(IRR_490,na.rm=T), 
-			2*median(IRR_490_ADJUSTED, na.rm=T) - min(IRR_490_ADJUSTED, na.rm=T)))
+		max(2*quantile(IRR_490, 1/4, na.rm=T) - min(IRR_490,na.rm=T), 
+			2*quantile(IRR_490_ADJUSTED, 1/4, na.rm=T) - min(IRR_490_ADJUSTED, na.rm=T)))
 	
     g1 = ggplot(ggdata, aes(x=PAR, y=PRES)) +
         geom_point() +
