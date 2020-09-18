@@ -14,10 +14,11 @@ links <- data.frame(
     target = c("Dead", "Alive", "PEEK", "Al",   "Drift A", "Drift B", "No drift", "Not corrected", "Corrected", "Corrected", "Corrected", "Night method", "Day method", "QC 1",         "QC 2",         "QC 1",       "QC 2"), 
     value1 =  c(26,     7,       21,     5,      11,        2,         3,          5,               11,          2,           3,            11,            5,            10,             1,              1,            4),
     value2 =  c(11,     3,       10,     1,      5,         0,         2,          3,               5,           0,           2,            6,             1,            2,              4,              1,            0),
-    value3 =  c(22,     7,       17,     5,      6,         4,         2,          5,               6,           4,           2,            9,             3,            6,              3,              2,            1)
+    value3 =  c(22,     7,       17,     5,      6,         4,         2,          5,               6,           4,           2,            9,             3,            6,              3,              2,            1),
+    value4 =  c(10,     2,       10,     0,      4,         1,         2,          3,               4,           1,           2,            2,             5,            2,              0,              4,            1)
 )
 
-links$value = links$value1 + links$value2 + links$value3
+links$value = links$value1 + links$value2 + links$value3 + links$value4
 
 # From these flows we need to create a node data frame: it lists every entities involved in the flow
 nodes <- data.frame(
