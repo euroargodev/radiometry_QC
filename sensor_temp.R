@@ -1,4 +1,4 @@
-sensor_temp <- function(TEMP, PRES_TEMP, PRES_PARAM, meterial="PEEK") {
+sensor_temp <- function(TEMP, PRES_TEMP, PRES_PARAM, material="PEEK") {
 	
     if (material=="PEEK") {
 	    #k = 0.19/60 # s^-1
