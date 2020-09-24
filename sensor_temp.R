@@ -1,9 +1,17 @@
-sensor_temp <- function(TEMP, PRES_TEMP, PRES_PARAM) {
+sensor_temp <- function(TEMP, PRES_TEMP, PRES_PARAM, meterial="PEEK") {
 	
-	#k = 0.19/60 # s^-1
-	#delta_t = 54 # s
-	k = 12/3600 # s^-1
-	delta_t = 60 # s
+    if (material=="PEEK") {
+	    #k = 0.19/60 # s^-1
+	    #delta_t = 54 # s
+	    k = 12/3600 # s^-1
+	    delta_t = 60 # s
+    } else if (material == "Aluminium") {
+        k = 0.44/60 # s^-1
+        delta_t = 15 # s
+    } else {
+        return(rep(NA, length(PRES_PARAM)))
+    }
+	
 	asc_speed = 0.1 # m/s
 
 	Tw = rev(TEMP[!is.na(TEMP) & !is.na(PRES_TEMP)])
