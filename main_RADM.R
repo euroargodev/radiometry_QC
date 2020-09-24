@@ -37,6 +37,17 @@ my_menu <- function(choices, title=NULL) { # equivalent to menu() but compatible
 }
 
 main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_cores=detectCores()) {
+    
+    choice = my_menu(title = "What kind of radiometry sensor is used in this float ? (0 to abandon and quit)",
+                     choices = c("OCR504 (PEEK)",
+                                 "OCR504 (Aluminium)"))
+    switch (choice + 1,
+            return(0),
+            
+            {sensor_type = "PEEK"},
+            
+            {sensor_type = "Aluminium"}
+    )
 
     cat("Preparing file lists, dates, and greylist...")
     
@@ -186,7 +197,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     
     DRIFT_MATCH = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
     						path_to_netcdf=path_to_netcdf, PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
-    						MoreArgs=list(method="drift_xing"))
+    						MoreArgs=list(method="drift_xing", material=sensor_type))
     DRIFT_dataf = data.frame("PARAM"=unlist(DRIFT_MATCH[1,]), 
     						"PARAM_Ts"=unlist(DRIFT_MATCH[2,]), 
     					   	"PARAM_date"=unlist(DRIFT_MATCH[3,]), 
@@ -461,11 +472,11 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     NIGHT_MATCH = mcmapply(get_profile_match, file_name=files_night_PARALLEL, param_name=PARAM_NAMES_night_PARALLEL,
     						PROFILE_DATE=date_night_PARALLEL, drift_A=A_axis_drift_night_PARALLEL,
     						drift_C=C_axis_drift_night_PARALLEL, drift_Q=Q_axis_drift_night_PARALLEL,
-    						mc.cores=n_cores, USE.NAMES=FALSE, MoreArgs=list(path_to_netcdf=path_to_netcdf))
+    						mc.cores=n_cores, USE.NAMES=FALSE, MoreArgs=list(path_to_netcdf=path_to_netcdf, material=sensor_type))
     DAY_MATCH = mcmapply(get_profile_match, file_name=files_day_PARALLEL, param_name=PARAM_NAMES_day_PARALLEL,
     						PROFILE_DATE=date_day_PARALLEL, drift_A=A_axis_drift_day_PARALLEL,
     						drift_C=C_axis_drift_day_PARALLEL, drift_Q=Q_axis_drift_day_PARALLEL,
-    						mc.cores=n_cores, USE.NAMES=FALSE, MoreArgs=list(method="day", path_to_netcdf=path_to_netcdf))
+    						mc.cores=n_cores, USE.NAMES=FALSE, MoreArgs=list(method="day", path_to_netcdf=path_to_netcdf, material=sensor_type))
     
     cat("DONE\nFlagging greylisted profiles and outliers in day profiles...")
     
@@ -516,7 +527,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     
     TEST_MATCH = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
                           path_to_netcdf=path_to_netcdf, PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
-                          MoreArgs=list(method="test"))
+                          MoreArgs=list(method="test", material=sensor_type))
     TEST_dataf = data.frame("PARAM"=unlist(TEST_MATCH[1,]), 
                             "PARAM_Ts"=unlist(TEST_MATCH[2,]), 
                             "PARAM_date"=unlist(TEST_MATCH[3,]), 
@@ -788,7 +799,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     	    
     	    match_day = get_profile_match(file_name=file_name, param_name=PARAM_NAMES[i], path_to_netcdf=path_to_netcdf, 
     	                                  PROFILE_DATE=PROFILE_DATE, method="day", drift_A=A_axis_drift_corr[i], 
-    	                                  drift_C=C_axis_drift_corr[i], drift_Q=Q_axis_drift_corr[i])
+    	                                  drift_C=C_axis_drift_corr[i], drift_Q=Q_axis_drift_corr[i], material=sensor_type)
     	    
     	    ### Flags
     	    

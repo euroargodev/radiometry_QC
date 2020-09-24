@@ -4,7 +4,7 @@
 ############################################################################################################
 
 
-get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
+get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME, material="PEEK") {
     
     file_B = paste(path_to_netcdf, file_name, sep="")
     
@@ -51,15 +51,15 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME) {
     nc_close(filenc_B)
     nc_close(filenc_C)
     
-    fitted_Ts = sensor_temp(TEMP, PRES_C, PRES_B)
+    fitted_Ts = sensor_temp(TEMP, PRES_C, PRES_B, material)
     
     return(list("PARAM"=PARAM, "Ts"=fitted_Ts, "PRES"=PRES_B, "id_prof"=id_prof_B, "n_prof"=n_prof_B, "n_levels"=n_levels_B,
                 "PARAM_QC"=PARAM_QC, "PRES_B_QC"=PRES_B_QC))
 }
 
-get_profile_match <- function(file_name, param_name, path_to_netcdf, PROFILE_DATE, method="night", drift_A=0, drift_C=0, drift_Q=0) {
+get_profile_match <- function(file_name, param_name, path_to_netcdf, PROFILE_DATE, method="night", drift_A=0, drift_C=0, drift_Q=0, material="PEEK") {
     
-    match = get_Ts_match(path_to_netcdf=path_to_netcdf, file_name=file_name, PARAM_NAME=param_name)
+    match = get_Ts_match(path_to_netcdf=path_to_netcdf, file_name=file_name, PARAM_NAME=param_name, material)
     
     match_not_na = which(!is.na(match$PARAM) & !is.na(match$Ts) & !is.na(match$PRES))
     
