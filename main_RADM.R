@@ -690,14 +690,15 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         
     while(dev.cur() > 1) {dev.off()}
     
-    choice = my_menu(title = "What QC flag is the DM allowed to have at best in the dark section of profiles ? (0 to abandon and quit)",
-                     choices = c("Good",
-                                 "Probably good",
-                                 "Probably bad",
-                                 "Bad"))
-    if (choice == 0) { return(0) }
+    #choice = my_menu(title = "What QC flag is the DM allowed to have at best in the dark section of profiles ? (0 to abandon and quit)",
+    #                 choices = c("Good",
+    #                             "Probably good",
+    #                             "Probably bad",
+    #                             "Bad"))
+    #if (choice == 0) { return(0) }
     
-    best_QC = choice
+    #best_QC = choice
+    best_QC = 2
     
     #### Deal with missing dates
     
@@ -828,17 +829,26 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		
     		### Error
     		
-    		#corr_error = 0.2*abs(corr) #TODO
-    		corr_error = rep(NA, length(corr))
-    		corr_error[which(!is.na(corr))] = -1
+    		if (PARAM_NAMES[i] == "DOWNWELLING_PAR") {
+    		    ramp_error = 0.05 # 5%
+    		    abs_error = 1e-2 # umol/m²/s # TODO : validate
+    		} else {
+    		    ramp_error = 0.02 # 2%
+    		    abs_error = 2.5e-5 # W/m²/nm
+    		}
+    		
+    		corr_error = pmax(ramp_error*abs(corr), abs_error) #TODO : Include applied offset ?
+    		#corr_error = rep(NA, length(corr))
+    		#corr_error[which(!is.na(corr))] = -1
     		
     		corr_error_array = array(NA, c(matchup$n_levels, matchup$n_prof))
     		corr_error_array[, matchup$id_prof] = corr_error
             
     		### Scientific comment
             
-            scientific_comment = paste0(PARAM_NAMES[i], " dark correction. Uses JULD to correct drift and SENSOR_TEMP to correct temperature variance. SENSOR_TEMP is reconstructed from the TEMP axis of the core file following [https://doi.org/10.1117/12.2504241] with delta_t=60s and k=12h^-1")
-    		### Scientific coefficient
+            scientific_comment = paste0(PARAM_NAMES[i], " dark correction. Uses JULD to correct drift and SENSOR_TEMP to correct temperature variance. SENSOR_TEMP is reconstructed from the TEMP axis of the core file following [https://doi.org/10.1117/12.2504241]")# with delta_t=60s and k=12h^-1")
+    		
+            ### Scientific coefficient
             
             A_total = A_axis_drift_corr[i] + A_axis_corr[i]
             scientific_coefficient = paste0("A = ", signif(A_total,4),", B = ", signif(B_axis_corr[i],4), ", C = ", signif(C_axis_drift_corr[i],4))
@@ -867,7 +877,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		
     		### HISTORY_SOFTWARE_RELEASE
     		
-            HISTORY_SOFTWARE_RELEASE = "1.00"
+            HISTORY_SOFTWARE_RELEASE = "1.01"
     		
     		### write to file
     		
