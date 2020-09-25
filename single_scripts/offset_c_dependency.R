@@ -47,10 +47,11 @@ for (i in 1:length(file_A)) {
 file_list_10 = paste0(path_to_netcdf, file_list_10)
 file_list_08 = paste0(path_to_netcdf, file_list_08)
 file_list_12 = paste0(path_to_netcdf, file_list_12)
+file_A = paste0(path_to_netcdf, file_A)
 
 PARAM_NAME = "DOWN_IRRADIANCE490"
 
-get_param <- function(filename, PARAM_NAME) {
+get_param <- function(filename, PARAM_NAME, adj = T) {
     fnc = nc_open(filename)
     
     parameters = ncvar_get(fnc, "STATION_PARAMETERS")
@@ -62,11 +63,14 @@ get_param <- function(filename, PARAM_NAME) {
     
     PARAM_NAME_ADJUSTED = paste0(PARAM_NAME, "_ADJUSTED")
     
-    param_adjusted = ncvar_get(fnc, PARAM_NAME_ADJUSTED, start=c(1,id_prof), count=c(n_level,1))	
-    
+    if (adj) {
+        param_return = ncvar_get(fnc, PARAM_NAME_ADJUSTED, start=c(1,id_prof), count=c(n_level,1))	
+    } else {
+        param_return = ncvar_get(fnc, PARAM_NAME, start=c(1,id_prof), count=c(n_level,1))
+    }
     nc_close(fnc)
     
-    return(param_adjusted)
+    return(param_return)
 }
 
 n_cores = detectCores()
@@ -74,11 +78,34 @@ n_cores = detectCores()
 all_param_10 = unlist(mcmapply(get_param, filename = file_list_10, MoreArgs = list("PARAM_NAME"=PARAM_NAME), mc.cores = n_cores, USE.NAMES = F))
 all_param_08 = unlist(mcmapply(get_param, filename = file_list_08, MoreArgs = list("PARAM_NAME"=PARAM_NAME), mc.cores = n_cores, USE.NAMES = F))
 all_param_12 = unlist(mcmapply(get_param, filename = file_list_12, MoreArgs = list("PARAM_NAME"=PARAM_NAME), mc.cores = n_cores, USE.NAMES = F))
+all_param_ad = unlist(mcmapply(get_param, filename = file_A, MoreArgs = list("PARAM_NAME"=PARAM_NAME, "adj"=F), mc.cores = n_cores, USE.NAMES = F))
+
+all_offset_10 = all_param_10 - all_param_ad
+all_offset_08 = all_param_08 - all_param_ad
+all_offset_12 = all_param_12 - all_param_ad
+
+diff_08 = all_param_08 - all_param_10
+diff_12 = all_param_12 - all_param_10
+
+max(abs(diff_08), na.rm=T)
+max(abs(diff_12), na.rm=T)
+
+cumul_08 = sort(abs(diff_08[which(!is.na(diff_08))]))
+cumul_prob_08 = 1:length(cumul_08)/length(cumul_08)
+plot(cumul_08, cumul_prob_08)
+cumul_08[min(which(cumul_prob_08 > 0.95))]
+
+cumul_12 = sort(abs(diff_12[which(!is.na(diff_12))]))
+cumul_prob_12 = 1:length(cumul_12)/length(cumul_12)
+plot(cumul_12, cumul_prob_12)
+cumul_12[min(which(cumul_prob_12 > 0.95))]
 
 h_08 <- ggplot() +
-    geom_histogram( aes(x = all_param_08-all_param_10, ..density..), fill="#69b3a2", color="#FFFFFF", boundary=T  )
+    geom_histogram( aes(x = diff_08, length(cumul_08)*1e-6*..density..), fill="#69b3a2", color="#FFFFFF", boundary=T, binwidth = 1e-6  ) +
+    labs(x="Change in obtained Irr490", y="Number of points", title = "Difference between ascending speeds of 8 cm/s and 10 cm/s")
 h_12 <- ggplot() +
-    geom_histogram( aes(x = all_param_12-all_param_10, ..density..), fill="#69b3a2", color="#FFFFFF", boundary=T  )
+    geom_histogram( aes(x = diff_12, length(cumul_12)*1e-6*..density..), fill="#69b3a2", color="#FFFFFF", boundary=T, binwidth = 1e-6  ) +
+    labs(x="Change in obtained Irr490", y="Number of points", title = "Difference between ascending speeds of 12 cm/s and 10 cm/s")
 
 p_08 = ggplot() +
     geom_point(aes(x=all_param_10, y=all_param_08-all_param_10)) +

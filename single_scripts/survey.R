@@ -40,7 +40,7 @@ solar_elev[valid] = unlist(M, use.names=F)
 
 is_night = (solar_elev < -5)
 
-drift_start = 20140801000000 # august 4 2014
+drift_start = 20140801000000 # august 1 2014
 is_drift = (prof_date > drift_start)
 
 floats = unique(wod[which(is_coriolis & is_radiometry)])

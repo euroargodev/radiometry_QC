@@ -39,6 +39,6 @@ for (param in c("median", "mean", "max", "min", "sd")) {
 df2 = na.omit(df)
 
 p <- ggplot() +
-    geom_histogram( aes(x = df2$mean, y=..density..), fill="#69b3a2" , color="#FFFFFF", boundary=T  ) +
+    geom_histogram( aes(x = df2$mean, y=0.5*length(df2$mean)*..density..), fill="#69b3a2" , color="#FFFFFF", boundary=T, binwidth=0.5  ) +
     #geom_label( aes(x=250, y=6, label="corrected"), color="#69b3a2") +
-    labs(x="dE_dark/dtime", y="Number of floats")
+    labs(x="dP/dt (decibar/s)", y="Number of profiles")
