@@ -54,3 +54,33 @@ for (i in 1:length(floats)) {
 	
 	num_drift[i] = length(which( (wod == floats[i]) & is_radiometry & is_drift ))
 }
+
+source("~/Documents/radiometry/single_scripts/count_profiles_corrected.R")
+
+match_WMO = match(corr_list$WMO, floats)
+corr_list$num_night = num_night[match_WMO]
+corr_list$num_drift = num_drift[match_WMO]
+corr_list$num_prof = num_prof[match_WMO]
+
+length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof))
+length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof))
+length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof))
+length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof))
+length(which(corr_list$material == "ALU" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof))
+length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof))
+length(which(corr_list$material == "ALU" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof))
+length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof))
+
+length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1))
+length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1))
+length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1))
+length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1))
+
+length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
+length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
+length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
+length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
+length(which(corr_list$material == "ALU" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
+length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
+length(which(corr_list$material == "ALU" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
+length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
