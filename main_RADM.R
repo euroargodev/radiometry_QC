@@ -197,7 +197,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     
     DRIFT_MATCH = mcmapply(get_profile_match, file_name=files_drift_PARALLEL, param_name=PARAM_NAMES_drift_PARALLEL,
     						path_to_netcdf=path_to_netcdf, PROFILE_DATE=date_drift_PARALLEL, mc.cores=n_cores, USE.NAMES=FALSE, 
-    						MoreArgs=list(method="drift_xing", material=sensor_type))
+    						MoreArgs=list(method="day", material=sensor_type))
     DRIFT_dataf = data.frame("PARAM"=unlist(DRIFT_MATCH[1,]), 
     						"PARAM_Ts"=unlist(DRIFT_MATCH[2,]), 
     					   	"PARAM_date"=unlist(DRIFT_MATCH[3,]), 
@@ -233,12 +233,12 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     drift_dataf$PARAM_date_squared = (drift_dataf$PARAM_date)^2
     DRIFT_dataf$PARAM_date_squared = (DRIFT_dataf$PARAM_date)^2
     
-    drift_dataf$is_greylisted = mapply(is_greylisted, julian_day=drift_dataf$PARAM_date,
+    drift_dataf$is_greylisted = mcmapply(is_greylisted, julian_day=drift_dataf$PARAM_date,
     								PARAMETER_NAME=as.character(drift_dataf$PARAM_name),
-    								MoreArgs=list(WMO=WMO))
-    DRIFT_dataf$is_greylisted = mapply(is_greylisted, julian_day=DRIFT_dataf$PARAM_date,
+    								MoreArgs=list(WMO=WMO), mc.cores=n_cores)
+    DRIFT_dataf$is_greylisted = mcmapply(is_greylisted, julian_day=DRIFT_dataf$PARAM_date,
                                        PARAMETER_NAME=as.character(DRIFT_dataf$PARAM_name),
-                                       MoreArgs=list(WMO=WMO))
+                                       MoreArgs=list(WMO=WMO), mc.cores=n_cores)
     
     cat("DONE\n")
     
