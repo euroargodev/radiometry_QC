@@ -507,9 +507,9 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         PAR_dataf = data.frame("PARAM"=unlist(NIGHT_MATCH[1,]), "PARAM_Ts"=unlist(NIGHT_MATCH[2,]), 
     	    				   "PARAM_date"=unlist(NIGHT_MATCH[3,]), "PARAM_name"=unlist(NIGHT_MATCH[4,]),
     		    			   "PARAM_pres"=unlist(NIGHT_MATCH[5,]))
-        PAR_dataf$is_greylisted = mapply(is_greylisted, julian_day=PAR_dataf$PARAM_date,
+        PAR_dataf$is_greylisted = mcmapply(is_greylisted, julian_day=PAR_dataf$PARAM_date,
                                          PARAMETER_NAME=as.character(PAR_dataf$PARAM_name),
-                                         MoreArgs=list(WMO=WMO))
+                                         MoreArgs=list(WMO=WMO), mc.cores=n_cores)
     }
     
     DAY_dataf = data.frame("PARAM"=unlist(DAY_MATCH[1,]), 
@@ -518,9 +518,9 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     						"PARAM_name"=unlist(DAY_MATCH[4,]),
     						"is_dark_outlier"=is_dark_outlier_full,
     						"PARAM_pres"=unlist(DAY_MATCH[7,]))
-    DAY_dataf$is_greylisted = mapply(is_greylisted, julian_day=DAY_dataf$PARAM_date,
+    DAY_dataf$is_greylisted = mcmapply(is_greylisted, julian_day=DAY_dataf$PARAM_date,
     								PARAMETER_NAME=as.character(DAY_dataf$PARAM_name),
-    								MoreArgs=list(WMO=WMO))
+    								MoreArgs=list(WMO=WMO), mc.cores=n_cores)
     
     
     cat("DONE\nExtracting full Ts range...")
@@ -587,7 +587,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         	fit_param = fit_param[order(fit_Ts)]
         	fit_Ts = fit_Ts[order(fit_Ts)]
         	
-        	run_min = running(fit_param, fun=min, width=51, pad=TRUE)
+        	run_min = running(fit_param, fun=min, width=51, pad=TRUE, align="center")[26:(length(fit_param)+25)]
         	
         	data_run = data.frame("run_min"=run_min, "fit_Ts"=fit_Ts)
         	fit_AB_day = lm(run_min ~ fit_Ts, data=data_run)
@@ -837,12 +837,12 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		    abs_error = 2.5e-5 # W/m²/nm
     		}
     		
-    		corr_error = pmax(ramp_error*abs(corr), abs_error) #TODO : Include applied offset ?
+    		corr_error_array = pmax(ramp_error*abs(corr_array), abs_error) #TODO : Include applied offset ?
     		#corr_error = rep(NA, length(corr))
     		#corr_error[which(!is.na(corr))] = -1
     		
-    		corr_error_array = array(NA, c(matchup$n_levels, matchup$n_prof))
-    		corr_error_array[, matchup$id_prof] = corr_error
+    		#corr_error_array = array(NA, c(matchup$n_levels, matchup$n_prof))
+    		#corr_error_array[, matchup$id_prof] = corr_error
             
     		### Scientific comment
             
