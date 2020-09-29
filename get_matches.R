@@ -10,8 +10,8 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME, material="PEEK")
     
     # get core file name
     path_split = unlist(strsplit(file_name, "/"))
-    path_to_profile = paste(path_split[1], path_split[2], path_split[3], sep="/")
-    filenc_name_C = paste("?",substring(path_split[4], 3),sep="")
+    path_to_profile = paste(path_split[-length(path_split)], collapse="/")
+    filenc_name_C = paste("?",substring(path_split[length(path_split)], 3),sep="")
     file_C = paste(path_to_netcdf, path_to_profile, "/", filenc_name_C, sep="") 
     file_C = system2("ls", file_C, stdout=TRUE) # identify R or D file 
     if (length(file_C)==2) { # if both R and D files exist
