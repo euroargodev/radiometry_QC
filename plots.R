@@ -320,7 +320,9 @@ plot_corr_wrapper <- function(WMO, index_ifremer, path_to_netcdf, n_cores=detect
     }
     files_corr = paste(path_to_netcdf, files_corr, sep="")
     
-    C = mcmapply(plot_corr, files_corr, mc.cores=n_cores, SIMPLIFY=FALSE, MoreArgs=list(pres_zoom=pres_zoom))
+    check_file_exists = unlist(mclapply(files_corr, function(file_ls){is.null(attr(try(system2("ls", file_ls, stdout = T), silent=T), "status"))}))
+    
+    C = mcmapply(plot_corr, files_corr[which(check_file_exists)], mc.cores=n_cores, SIMPLIFY=FALSE, MoreArgs=list(pres_zoom=pres_zoom))
     
     return(C)
 }
@@ -345,7 +347,7 @@ plot_QC_wrapper <- function(WMO, index_ifremer, path_to_netcdf, n_cores=detectCo
     #M = mcmapply(plot_QC, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=FALSE, do_plot=FALSE))
     
     #Mcorr = mcmapply(plot_QC, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=TRUE, do_plot=FALSE))
-    Mcorr = mcmapply(plot_QC, files_corr, mc.cores=num_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=with_corr, do_plot=do_plot, logscale=logscale))
+    Mcorr = mcmapply(plot_QC, files_corr, mc.cores=n_cores, SIMPLIFY=FALSE, MoreArgs=list(with_corr=with_corr, do_plot=do_plot, logscale=logscale))
     
     return(Mcorr)
     
