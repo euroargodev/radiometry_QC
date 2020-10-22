@@ -289,11 +289,14 @@ WMO_list = c("6901655", "6902735", "6902826", "6902954", "6901004", "6901480", "
 
 dataf_sd = data.frame("WMO"=WMO_list, "PAR_sd"=numeric(length(WMO_list)), "I380_sd"=numeric(length(WMO_list)), "I412_sd"=numeric(length(WMO_list)), "I490_sd"=numeric(length(WMO_list)))
 
-for (i in 25:length(WMO_list)) {
+for (i in 1:length(WMO_list)) {
     dataf_sd[i, 2:5] = get_deep_sd(WMO_list[i])
 }
 
-hist(dataf_sd$PAR_sd)
-hist(dataf_sd$I380_sd)
-hist(dataf_sd$I412_sd)
-hist(dataf_sd$I490_sd)
+hist(dataf_sd$PAR_sd, xlab="PAR standard deviation (umol/m²/s)", main="Histogram of the remaining SD in drift data after a\n multi-linear regression (34 hand-selected floats)")
+hist(dataf_sd$I380_sd, xlab="Ed(380) standard deviation (W/m²/nm)", main="Histogram of the remaining SD in drift data after a\n multi-linear regression (34 hand-selected floats)")
+hist(dataf_sd$I412_sd, xlab="Ed(412) standard deviation (W/m²/nm)", main="Histogram of the remaining SD in drift data after a\n multi-linear regression (34 hand-selected floats)")
+hist(dataf_sd$I490_sd, xlab="Ed(490) standard deviation (W/m²/nm)", main="Histogram of the remaining SD in drift data after a\n multi-linear regression (34 hand-selected floats)")
+
+WMO_list[which(dataf_sd$PAR_sd>0.01)]
+hist(dataf_sd$PAR_sd[which(dataf_sd$PAR_sd<0.01)], xlab="PAR standard deviation (umol/m²/s)", main="Histogram of the remaining SD in drift data after a\n multi-linear regression (30 hand-selected floats)")
