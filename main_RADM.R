@@ -831,7 +831,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		
     		if (PARAM_NAMES[i] == "DOWNWELLING_PAR") {
     		    ramp_error = 0.05 # 5%
-    		    abs_error = 1e-2 # umol/m²/s # TODO : validate
+    		    abs_error = 3e-2 # umol/m²/s # TODO : validate
     		} else {
     		    ramp_error = 0.02 # 2%
     		    abs_error = 2.5e-5 # W/m²/nm
@@ -846,7 +846,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             
     		### Scientific comment
             
-            scientific_comment = paste0(PARAM_NAMES[i], " dark correction. Uses JULD to correct drift and SENSOR_TEMP to correct temperature variance. SENSOR_TEMP is reconstructed from the TEMP axis of the core file following [https://doi.org/10.1117/12.2504241]")# with delta_t=60s and k=12h^-1")
+        	scientific_comment = str_pad(paste0(PARAM_NAMES[i], " dark correction. Uses JULD to correct drift and SENSOR_TEMP to correct temperature variance. SENSOR_TEMP is reconstructed from the TEMP axis of the core file following [https://doi.org/10.13155/62466]"), 256, "right")
     		
             ### Scientific coefficient
             
@@ -877,7 +877,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     		
     		### HISTORY_SOFTWARE_RELEASE
     		
-            HISTORY_SOFTWARE_RELEASE = "1.01"
+            HISTORY_SOFTWARE_RELEASE = "1.03"
     		
     		### write to file
     		
