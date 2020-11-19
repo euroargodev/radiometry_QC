@@ -9,24 +9,28 @@ source("~/Documents/radiometry/sensor_temp.R")
 PARAM_NAMES = c("DOWNWELLING_PAR", "DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", "DOWN_IRRADIANCE490")
 
 
-WMO_list = system2("ls", c("/DATA/correct_RADM/RADM_???????.zip"), stdout = T)
+#WMO_list = system2("ls", c("/DATA/correct_RADM/RADM_???????.zip"), stdout = T)
+WMO_list = system2("ls", c("/mnt/c/DATA/correct_RADM/RADM_???????.zip"), stdout = T)
 WMO_list = str_sub(WMO_list, -11, -5)
 #file_list = system2("ls", c("/DATA/correct_RADM/RADM_???????/RADM_profiles/B*"), stdout = T)
 
-corr_file <- function(file_name) {
+corr_file <- function(file_name, WMO) {
     
     path_sep = unlist(strsplit(file_name, "/"))
     
-    file_name_out = paste(path_sep[1], path_sep[2], path_sep[3], path_sep[4], "RADM_profiles_2", path_sep[6], sep="/")
+    #file_name_out = paste(path_sep[1], path_sep[2], path_sep[3], path_sep[4], "RADM_profiles_2", path_sep[6], sep="/")
+    file_name_out = paste(path_sep[1], path_sep[2], path_sep[3], path_sep[4], path_sep[5], path_sep[6], "RADM_profiles_2", path_sep[8], sep="/")
     full_file_name_out = paste(file_name_out, sep="")
     #full_file_name_in = file_name
     
     system2("cp", c(file_name, full_file_name_out))
-    
+ 
     fnc = nc_open(full_file_name_out, readunlim=FALSE, write=TRUE)
     
     parameters = ncvar_get(fnc, "STATION_PARAMETERS")
     id_param_arr = which(parameters == str_pad("DOWNWELLING_PAR", 64, side="right"), arr.ind=TRUE)
+
+	if (length(id_param_arr)==0) return(0)
     if (length(id_param_arr)==2) id_prof=id_param_arr[2] else id_prof=id_param_arr[1,2]
     if (length(id_param_arr)==2) id_param=id_param_arr[1] else id_param=id_param_arr[1,1]
     
@@ -37,16 +41,25 @@ corr_file <- function(file_name) {
         return(0) 
     }
     
+	file_C = paste0("/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/coriolis/", WMO, "/profiles/", "?", substr(path_sep[8], 3, 16))	
+    file_C = system2("ls", file_C, stdout=TRUE) # identify R or D file 
+    if (length(file_C)==2) { # if both R and D files exist
+       	file_C = file_C[1] # use the D file which is first in alphabetical order
+    }
+
     for (i in 1:length(PARAM_NAMES)) {
         
         PARAM_ADJUSTED_NAME = paste0(PARAM_NAMES[i], "_ADJUSTED")
         PARAM_ADJUSTED_QC_NAME = paste0(PARAM_ADJUSTED_NAME, "_QC")
         PARAM_ADJUSTED_ERROR_NAME = paste0(PARAM_ADJUSTED_NAME, "_ERROR")
-        
-        matchup = get_Ts_match(file_name=file_name, path_to_netcdf="", PARAM_NAME=PARAM_NAMES[i])
+       	
+		#material = "PEEK"
+		material = "Aluminium"
+		 
+        matchup = get_Ts_match(file_name=file_name, path_to_netcdf="", PARAM_NAME=PARAM_NAMES[i], material=material, core_file_name=file_C)
         
         match_day = get_profile_match(file_name=file_name, param_name=PARAM_NAMES[i], path_to_netcdf="", 
-                                      PROFILE_DATE=0, method="day", material="PEEK")
+                                      PROFILE_DATE=0, method="day", material=material, core_file_name=file_C)
         
         ### Flags
         
@@ -79,7 +92,7 @@ corr_file <- function(file_name) {
         
         if (PARAM_NAMES[i] == "DOWNWELLING_PAR") {
             ramp_error = 0.05 # 5%
-            abs_error = 1e-2 # umol/m²/s # TODO : validate
+            abs_error = 3e-2 # umol/m²/s # TODO : validate
         } else {
             ramp_error = 0.02 # 2%
             abs_error = 2.5e-5 # W/m²/nm
@@ -94,7 +107,7 @@ corr_file <- function(file_name) {
         
         ### Scientific comment
         
-        #scientific_comment = paste0(PARAM_NAMES[i], " dark correction. Uses JULD to correct drift and SENSOR_TEMP to correct temperature variance. SENSOR_TEMP is reconstructed from the TEMP axis of the core file following [https://doi.org/10.1117/12.2504241]")# with delta_t=60s and k=12h^-1")
+        scientific_comment = str_pad(paste0(PARAM_NAMES[i], " dark correction. Uses JULD to correct drift and SENSOR_TEMP to correct temperature variance. SENSOR_TEMP is reconstructed from the TEMP axis of the core file following [https://doi.org/10.13155/62466]"), 256, "right")
         
         ### Scientific coefficient
         
@@ -137,7 +150,7 @@ corr_file <- function(file_name) {
         
         ncvar_put(fnc, PARAM_ADJUSTED_QC_NAME, corr_qc_array)
         ncvar_put(fnc, PARAM_ADJUSTED_ERROR_NAME, corr_error_array)
-        
+       	ncvar_put(fnc, "SCIENTIFIC_CALIB_COMMENT", scientific_comment, start=c(1,id_param,1,id_prof), count=c(256,1,1,1)) 
     }
     
     nc_close(fnc)
@@ -150,13 +163,21 @@ n_cores = detectCores()
 
 res = NULL
 
-for (WMO in WMO_list[1:2]) {
-    files_list = system2("ls", c(paste0("/DATA/correct_RADM/RADM_", WMO, "/RADM_profiles/B*")), stdout = T)
-    corr_all = mcmapply(corr_file, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE)
+#for (WMO in WMO_list) {
+for (WMO in c("6901486", "6902880")) {
+	print(WMO)
+    #files_list = system2("ls", c(paste0("/DATA/correct_RADM/RADM_", WMO, "/RADM_profiles/B*")), stdout = T)
+    files_list = system2("ls", c(paste0("/mnt/c/DATA/correct_RADM/RADM_", WMO, "/RADM_profiles/B*")), stdout = T)
+    corr_all = mcmapply(corr_file, file_name=files_list, mc.cores=n_cores, SIMPLIFY=FALSE, USE.NAMES=FALSE, MoreArgs=list("WMO"=WMO))
     res[[WMO]] = corr_all
 }
 
-corr_file(file_list[1])
+#corr_file(file_list[1])
 
 #corr_all = mcmapply(corr_file, file_name=files_list, PROFILE_DATE=date_list, mc.cores=n_cores, SIMPLIFY=FALSE,
 #                    MoreArgs=list(path_to_netcdf=path_to_netcdf))
+
+is_ok = rep(NA, length(WMO_list))
+for (i in 1:length(is_ok)) {
+	is_ok[i] = all(unlist(res[[WMO_list[i]]])==0)
+}

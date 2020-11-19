@@ -4,19 +4,23 @@
 ############################################################################################################
 
 
-get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME, material="PEEK") {
+get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME, material="PEEK", core_file_name=NULL) {
     
     file_B = paste(path_to_netcdf, file_name, sep="")
     
-    # get core file name
-    path_split = unlist(strsplit(file_name, "/"))
-    path_to_profile = paste(path_split[-length(path_split)], collapse="/")
-    filenc_name_C = paste("?",substring(path_split[length(path_split)], 3),sep="")
-    file_C = paste(path_to_netcdf, path_to_profile, "/", filenc_name_C, sep="") 
-    file_C = system2("ls", file_C, stdout=TRUE) # identify R or D file 
-    if (length(file_C)==2) { # if both R and D files exist
-        file_C = file_C[1] # use the D file which is first in alphabetical order
-    }
+	if (is.null(core_file_name)) {
+    	# get core file name
+    	path_split = unlist(strsplit(file_name, "/"))
+    	path_to_profile = paste(path_split[-length(path_split)], collapse="/")
+    	filenc_name_C = paste("?",substring(path_split[length(path_split)], 3),sep="")
+    	file_C = paste(path_to_netcdf, path_to_profile, "/", filenc_name_C, sep="") 
+    	file_C = system2("ls", file_C, stdout=TRUE) # identify R or D file 
+    	if (length(file_C)==2) { # if both R and D files exist
+        	file_C = file_C[1] # use the D file which is first in alphabetical order
+    	}
+	} else {
+		file_C = paste0(path_to_netcdf, core_file_name)
+	}
     
     filenc_B = nc_open(file_B)
     filenc_C = nc_open(file_C)
@@ -57,9 +61,9 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME, material="PEEK")
                 "PARAM_QC"=PARAM_QC, "PRES_B_QC"=PRES_B_QC))
 }
 
-get_profile_match <- function(file_name, param_name, path_to_netcdf, PROFILE_DATE, method="night", drift_A=0, drift_C=0, drift_Q=0, material="PEEK") {
+get_profile_match <- function(file_name, param_name, path_to_netcdf, PROFILE_DATE, method="night", drift_A=0, drift_C=0, drift_Q=0, material="PEEK", core_file_name=NULL) {
     
-    match = get_Ts_match(path_to_netcdf=path_to_netcdf, file_name=file_name, PARAM_NAME=param_name, material)
+    match = get_Ts_match(path_to_netcdf=path_to_netcdf, file_name=file_name, PARAM_NAME=param_name, material, core_file_name)
     
     match_not_na = which(!is.na(match$PARAM) & !is.na(match$Ts) & !is.na(match$PRES))
     
