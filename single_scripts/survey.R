@@ -47,13 +47,19 @@ floats = unique(wod[which(is_coriolis & is_radiometry)])
 num_prof = rep(NA, length(floats))
 num_night = rep(NA, length(floats))
 num_drift = rep(NA, length(floats))
+is_baffin = rep(NA, length(floats))
+
 
 for (i in 1:length(floats)) {
 	num_prof[i] = length(which( (wod == floats[i]) & is_radiometry ))
 	num_night[i] = length(which( (wod == floats[i]) & is_radiometry & is_night ))
 	
 	num_drift[i] = length(which( (wod == floats[i]) & is_radiometry & is_drift ))
+	first_prof = which(wod == floats[i])[1]
+	is_baffin[i] = (lat[first_prof] > 65) & (lon[first_prof] > -85) & (lon[first_prof] < -45)
 }
+
+num_drift[which(is_baffin)] = 0
 
 source("~/Documents/radiometry/single_scripts/count_profiles_corrected.R")
 
@@ -62,25 +68,33 @@ corr_list$num_night = num_night[match_WMO]
 corr_list$num_drift = num_drift[match_WMO]
 corr_list$num_prof = num_prof[match_WMO]
 
-length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof))
-length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof))
-length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof))
-length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof))
-length(which(corr_list$material == "ALU" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof))
-length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof))
-length(which(corr_list$material == "ALU" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof))
-length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof))
-
-length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1))
-length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1))
-length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1))
-length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1))
-
-length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
-length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
-length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
-length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
-length(which(corr_list$material == "ALU" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
-length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
-length(which(corr_list$material == "ALU" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
-length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==0))
+cat(
+length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof)),
+length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof)),
+length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof)),
+length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof)),
+length(which(corr_list$material == "ALU" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof)),
+length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof)),
+length(which(corr_list$material == "ALU" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof)),
+length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof)),
+"\n")
+cat(
+length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1)),
+length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1)),
+length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1)),
+length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1)),
+length(which(corr_list$material == "ALU" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1)),
+length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1)),
+length(which(corr_list$material == "ALU" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1)),
+length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & corr_list$corrected==1)),
+"\n")
+cat(
+length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & !is.na(corr_list$corrected))),
+length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & !is.na(corr_list$corrected))),
+length(which(corr_list$material == "PEEK" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & !is.na(corr_list$corrected))),
+length(which(corr_list$material == "PEEK" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & !is.na(corr_list$corrected))),
+length(which(corr_list$material == "ALU" & corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & !is.na(corr_list$corrected))),
+length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & corr_list$num_drift>0.8*corr_list$num_prof & !is.na(corr_list$corrected))),
+length(which(corr_list$material == "ALU" & corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & !is.na(corr_list$corrected))),
+length(which(corr_list$material == "ALU" & !corr_list$num_night>0 & !corr_list$num_drift>0.8*corr_list$num_prof & !is.na(corr_list$corrected))),
+"\n")

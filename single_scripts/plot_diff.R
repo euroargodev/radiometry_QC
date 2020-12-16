@@ -6,9 +6,9 @@ library(gridExtra)
 source("~/Documents/radiometry/get_matches.R")
 source("~/Documents/radiometry/sensor_temp.R")
 
-file_A = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/coriolis/6901474/profiles/BD6901474_282.nc"
-file_D = "~/Documents/radiometry_QC/6901474/RADM_profiles/BD6901474_282.nc"
-file_core = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/coriolis/6901474/profiles/D6901474_282.nc"
+file_A = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/coriolis/6901474/profiles/BD6901474_006.nc"
+file_D = "~/Documents/radiometry_QC/6901474/RADM_profiles/BD6901474_006.nc"
+file_core = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/coriolis/6901474/profiles/D6901474_006.nc"
 
 path_to_netcdf=""
 
@@ -40,6 +40,7 @@ Irr_D = get_param(file_D, param)
 nna = which(!is.na(match_A$PARAM) & !is.na(match_A$Ts) & !is.na(match_A$PRES))
 
 df = data.frame("PARAM_A"=match_A$PARAM[nna], "PARAM_D"=Irr_D[nna], "PRES"=match_A$PRES[nna], "Ts"=match_A$Ts[nna])
+df$ERROR = pmax(2.5e-5, df$PARAM_D*0.02)
 
 ab = lm(df$PARAM_D-df$PARAM_A ~ df$Ts)
 
@@ -65,19 +66,49 @@ g2 = ggplot(df, aes(x=PARAM_A, y=PRES)) +
 		sec.axis = sec_axis(trans=~.*1, name="Dummy")
 ) +
 	geom_vline(xintercept=0, linetype="dashed") +
-	geom_ribbon(aes(xmin=PARAM_D-2.5e-5, xmax=PARAM_D+2.5e-5), fill="grey70", alpha=0.5) +
-	geom_path() +
-	geom_path(aes(x=PARAM_D), color="red") +
+	scale_color_manual(values = c("Not corrected"="black", "Corrected"="red")) +
+	geom_ribbon(aes(xmin=PARAM_D-ERROR, xmax=PARAM_D+ERROR), fill="grey60", alpha=0.5) +
+	geom_path(aes(color="Not corrected")) +
+	geom_path(aes(x=PARAM_D, color="Corrected")) +
 	theme_bw() +
 	theme(
 		axis.title.x.top = element_text(color = "white"),
 		axis.text.x.top = element_text(color = "white"),
-		axis.ticks.x.top = element_line(size=0)
+		axis.ticks.x.top = element_line(size=0),
+		legend.title = element_blank(),
+		legend.position = c(0.01, 0.99),
+		legend.justification = c("left", "top"),
+		legend.background = element_rect(fill="grey90")
 	)
 
-g3 = grid.arrange(g2, g1, nrow=1)
-g3
+min_ribbon = min(df$PARAM_A[which(df$PARAM_A>0)], df$PARAM_D[which(df$PARAM_D>0)])
 
-png(filename="~/Documents/radiometry_QC/plot_diff/plot_correction_6901474_282_Ed380.png", width=400, height=400)
-grid.arrange(g2, g1, nrow=1)
+g3 = ggplot(df, aes(x=PARAM_A, y=PRES)) +
+	scale_y_reverse(name="Pressure (dbar)") +
+	scale_x_log10(
+		expand=expansion(mult=c(0,0.04)),
+		name = "Ed(380) (W/m²/s)",
+		sec.axis = sec_axis(trans=~.*1, name="Dummy")
+) + 
+	#geom_vline(xintercept=0, linetype="dashed") +
+    geom_ribbon(aes(xmin=pmax(min_ribbon,PARAM_D-ERROR), xmax=PARAM_D+ERROR), fill="grey60", alpha=0.5) +
+	geom_point(aes(color="Not corrected"), size=1) +
+	geom_point(aes(x=PARAM_D, color="Corrected"), size=1) +
+	scale_color_manual(values = c("Not corrected"="black", "Corrected"="red")) +
+	theme_bw() +
+	theme(
+		axis.title.x.top = element_text(color = "white"),
+		axis.text.x.top = element_text(color = "white"),
+		axis.ticks.x.top = element_line(size=0),
+		legend.title = element_blank(),
+		legend.position = c(0.01, 0.99),
+		legend.justification = c("left", "top"),
+		legend.background = element_rect(fill="grey90")
+	) 
+
+#gt = grid.arrange(g3, g2, g1, nrow=1)
+#gt
+
+png(filename="~/Documents/radiometry_QC/plot_diff/plot_correction_6901474_006_Ed380.png", width=600, height=400)
+grid.arrange(g3, g2, g1, nrow=1)
 dev.off()

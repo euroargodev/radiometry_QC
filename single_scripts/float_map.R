@@ -1,10 +1,11 @@
 library(ggplot2)
 library(maps)
 library(parallel)
+library(RColorBrewer)
 
 world = map_data("world")
 
-corr_list = read.csv("~/Documents/radiometry_QC/float_list.t", sep=" ", header=T)
+corr_list = read.csv("~/Documents/radiometry_QC/float_list_temp.t", sep=" ", header=T)
 index_ifremer = read.table("~/Documents/radiometry/argo_bio-profile_index.txt", sep=",", header = T)
 
 #files = as.character(index_ifremer$file) #retrieve the path of each netcfd file
@@ -75,15 +76,17 @@ if (min(DIST, na.rm=T) >= buffer-0.1) {
 #lon_uncorr = lon[which(corr_list$corrected==0)]
 #lat_todo = lat[which(is.na(corr_list$corrected))]
 #lon_todo = lon[which(is.na(corr_list$corrected))]
+my_palette = brewer.pal(n=3, name="Dark2")[1:2]
 
 g1 = ggplot() +
 	geom_polygon(data=world, aes(x=long, y=lat, group=group), fill="#dddddd")+
 	geom_point(aes(x=lon_plot, y=lat_plot, color=status)) +
-	scale_color_manual(values=c("green", "red", "black"))+
+	scale_color_manual(values=my_palette)+
 	#geom_point(aes(x=lon_corr, y=lat_corr), color="green") +
 	#geom_point(aes(x=lon_uncorr, y=lat_uncorr), color="red") +
-	theme_bw()
+	theme_bw() +
+	labs(color = "Correction status", x="Longitude", y="Latitude") 
 
-png(filename="~/Documents/radiometry_QC/float_map.png", width=500, height=300)
-g1
+png(filename="~/Documents/radiometry_QC/float_map.png", width=700, height=400)
+plot(g1)
 dev.off()
