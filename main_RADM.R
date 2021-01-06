@@ -334,7 +334,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         	scale_color_viridis() +
         	facet_wrap(~PARAM_name, scale="free_y", labeller = labeller(PARAM_name = irr_labels)) +
 			theme_bw() +
-            labs (x="Julian day", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Closest drift\ntemperature")#, title="Irradiance measurements during float drift")
+            labs (x="Days from launch", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Closest drift\ntemperature")#, title="Irradiance measurements during float drift")
         g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date_0, y=PARAM, color=PARAM_Ts)) +
         	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
         	geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
@@ -342,21 +342,21 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         	scale_color_viridis() +
         	facet_wrap(~PARAM_name, scale="free_y", labeller = labeller(PARAM_name = irr_labels)) +
 			theme_bw() +
-            labs (x="Julian day", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Closest drift\ntemperature")#, title="Irradiance measurements during float drift,\nfitted to time and temperature and adjusted to 5°C")
+            labs (x="Days from launch", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Closest drift\ntemperature")#, title="Irradiance measurements during float drift,\nfitted to time and temperature and adjusted to 5°C")
         g6 = ggplot(na.omit(DRIFT_dataf), aes(x=PARAM_date_0, y=PARAM, color=PARAM_Ts)) +
         	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
             geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
         	scale_color_viridis() +
         	facet_wrap(~PARAM_name, scale="free_y", labeller = labeller(PARAM_name = irr_labels)) +
 			theme_bw() +
-            labs (x="Julian day", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Sensor\ntemperature")#, title="Dark data extracted from profiles")
+            labs (x="Days from launch", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Sensor\ntemperature")#, title="Dark data extracted from profiles")
         g7 = ggplot(na.omit(DRIFT_dataf_5C), aes(x=PARAM_date_0, y=PARAM, color=PARAM_Ts)) +
             geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
             geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
         	scale_color_viridis() +
         	facet_wrap(~PARAM_name, scale="free_y", labeller = labeller(PARAM_name = irr_labels)) +
 			theme_bw() +
-            labs (x="Julian day", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Sensor\ntemperature")#, title="Dark data extracted from profiles,\nfitted to time and temperature and adjusted to 5°C")
+            labs (x="Days from launch", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Sensor\ntemperature")#, title="Dark data extracted from profiles,\nfitted to time and temperature and adjusted to 5°C")
         	
         #g4_fit = g4 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
         g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
@@ -623,16 +623,16 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
             geom_point(data=function(x){x[!x$is_greylisted & x$PARAM_pres>pres_cutoff, ]}) +
             #geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
             scale_color_viridis(trans='reverse') +
-            facet_wrap(~PARAM_name, scale="free_y") +
-            labs (x="Sensor temperature", y="Irradiance", colour="Pressure (db)", 
-                  title="Data from night profiles")
+        	facet_wrap(~PARAM_name, scale="free_y", labeller = labeller(PARAM_name = irr_labels)) +
+			theme_bw() +
+            labs (x="Sensor temperature (°C)", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Pressure (dbar)")#, title="Data from night profiles")
         g1_day = ggplot(na.omit(DAY_dataf), aes(x=PARAM_Ts, y=PARAM, color=PARAM_pres, group=PARAM_name)) +
             geom_point(data=function(x){x[!x$is_greylisted & !x$is_dark_outlier & x$PARAM_pres>pres_cutoff, ]}) +
             #geom_point(data=function(x){x[x$is_greylisted & !x$is_dark_outlier, ]}, color="red") +
             scale_color_viridis(trans='reverse') +
-            facet_wrap(~PARAM_name, scale="free_y") +
-            labs (x="Sensor temperature", y="Irradiance", colour="Pressure (db)", 
-                  title="Data selected from day profiles")
+        	facet_wrap(~PARAM_name, scale="free_y", labeller = labeller(PARAM_name = irr_labels)) +
+			theme_bw() +
+            labs (x="Sensor temperature (°C)", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Pressure (dbar)")#, title="Data selected from day profiles")
         
         g2 = g1 + geom_line(data=data_fit, mapping=aes(x=x,y=y), color="red")
         g3 = g2 + geom_line(data=data_fit_day, mapping=aes(x=x,y=y), color="black")
@@ -659,7 +659,16 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         plot(g3)
         dev.off()
         
+        plot_name=paste0(WMO, "_regr_day_only.png")
+        png(filename=plot_name, width=600, height=600)
+        plot(g2_day)
+        dev.off()
         cat("DONE\n")
+
+        plot_name=paste0(WMO, "_regr_night_only.png")
+        png(filename=plot_name, width=600, height=600)
+        plot(g2)
+        dev.off()
         
         choice = my_menu(title = "Which correction should be used ? (0 to abandon and quit)",
                          choices = c("Continue with correction from night method",
