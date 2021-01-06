@@ -232,6 +232,9 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
     
     drift_dataf$PARAM_date_squared = (drift_dataf$PARAM_date)^2
     DRIFT_dataf$PARAM_date_squared = (DRIFT_dataf$PARAM_date)^2
+
+    drift_dataf$PARAM_date_0 = drift_dataf$PARAM_date - date_list[1]
+    DRIFT_dataf$PARAM_date_0 = DRIFT_dataf$PARAM_date - date_list[1]
     
     drift_dataf$is_greylisted = mcmapply(is_greylisted, julian_day=drift_dataf$PARAM_date,
     								PARAMETER_NAME=as.character(drift_dataf$PARAM_name),
@@ -309,48 +312,51 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
         
         data_fit_drift = data.frame(
         	PARAM_name = rep(PARAM_NAMES, each=2),
-        	x = rep(range_time, 4),
+        	x = rep(range_time - date_list[1], 4),
         	y = rep(A_axis_drift, each=2) + rep(B_axis_drift, each=2) * 5
         		+ rep(C_axis_drift, each=2) * rep(range_time, 4) 
         		+ rep(Q_axis_drift, each=2) * rep(range_time^2, 4) 
         )
         data_fit_DRIFT = data.frame(
         	PARAM_name = rep(PARAM_NAMES, each=2),
-        	x = rep(range_time, 4),
+        	x = rep(range_time - date_list[1], 4),
         	y = rep(A_axis_DRIFT, each=2) + rep(B_axis_DRIFT, each=2) * 5 
         	    + rep(C_axis_DRIFT, each=2) * rep(range_time, 4) 
         	    + rep(Q_axis_DRIFT, each=2) * rep(range_time^2, 4) 
         )
+
+		irr_labels = c("PAR", "Ed(380)", "Ed(412)", "Ed(490)")
+		names(irr_labels) = PARAM_NAMES
         
-        g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+        g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_date_0, y=PARAM, color=PARAM_Ts)) +
         	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
         	geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
         	scale_color_viridis() +
-        	facet_wrap(~PARAM_name, scale="free_y") +
-            labs (x="Julian day", y="Irradiance", colour="Closest drift\ntemperature", 
-                  title="Irradiance measurements during float drift")
-        g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+        	facet_wrap(~PARAM_name, scale="free_y", labeller = labeller(PARAM_name = irr_labels)) +
+			theme_bw() +
+            labs (x="Julian day", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Closest drift\ntemperature")#, title="Irradiance measurements during float drift")
+        g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date_0, y=PARAM, color=PARAM_Ts)) +
         	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
         	geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
         	#geom_point(data=function(x){x[x$is_drift_outlier & !x$is_greylisted, ]}, color="red", shape=4) +
         	scale_color_viridis() +
-        	facet_wrap(~PARAM_name, scale="free_y") +
-            labs (x="Julian day", y="Irradiance", colour="Closest drift\ntemperature",
-                  title="Irradiance measurements during float drift,\nfitted to time and temperature and adjusted to 5°C")
-        g6 = ggplot(na.omit(DRIFT_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+        	facet_wrap(~PARAM_name, scale="free_y", labeller = labeller(PARAM_name = irr_labels)) +
+			theme_bw() +
+            labs (x="Julian day", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Closest drift\ntemperature")#, title="Irradiance measurements during float drift,\nfitted to time and temperature and adjusted to 5°C")
+        g6 = ggplot(na.omit(DRIFT_dataf), aes(x=PARAM_date_0, y=PARAM, color=PARAM_Ts)) +
         	geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
             geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
         	scale_color_viridis() +
-        	facet_wrap(~PARAM_name, scale="free_y") +
-            labs (x="Julian day", y="Irradiance", colour="Sensor\ntemperature", 
-                  title="Dark data extracted from profiles")
-        g7 = ggplot(na.omit(DRIFT_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+        	facet_wrap(~PARAM_name, scale="free_y", labeller = labeller(PARAM_name = irr_labels)) +
+			theme_bw() +
+            labs (x="Julian day", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Sensor\ntemperature")#, title="Dark data extracted from profiles")
+        g7 = ggplot(na.omit(DRIFT_dataf_5C), aes(x=PARAM_date_0, y=PARAM, color=PARAM_Ts)) +
             geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
             geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
         	scale_color_viridis() +
-        	facet_wrap(~PARAM_name, scale="free_y") +
-            labs (x="Julian day", y="Irradiance", colour="Sensor\ntemperature", 
-                  title="Dark data extracted from profiles,\nfitted to time and temperature and adjusted to 5°C")
+        	facet_wrap(~PARAM_name, scale="free_y", labeller = labeller(PARAM_name = irr_labels)) +
+			theme_bw() +
+            labs (x="Julian day", y="Irradiance (W/m²/nm, umol/m²/s for PAR)", colour="Sensor\ntemperature")#, title="Dark data extracted from profiles,\nfitted to time and temperature and adjusted to 5°C")
         	
         #g4_fit = g4 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
         g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
