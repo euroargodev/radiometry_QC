@@ -29,6 +29,7 @@ suppressPackageStartupMessages({
     library(stringi)
     library(parallel)
     library(ggplot2)
+    library(latex2exp)
     library(plyr)
     library(viridis)
     library(gridExtra)
