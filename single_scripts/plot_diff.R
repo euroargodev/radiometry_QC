@@ -2,13 +2,30 @@ library(ncdf4)
 library(stringr)
 library(ggplot2)
 library(gridExtra)
+library(latex2exp)
 
 source("~/Documents/radiometry/get_matches.R")
 source("~/Documents/radiometry/sensor_temp.R")
 
-file_A = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/coriolis/6901474/profiles/BD6901474_006.nc"
-file_D = "~/Documents/radiometry_QC/6901474/RADM_profiles/BD6901474_006.nc"
-file_core = "/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/coriolis/6901474/profiles/D6901474_006.nc"
+WMO = "6901474"
+profile = "006"
+#param = "DOWN_IRRADIANCE380"
+#param = "DOWNWELLING_PAR"
+PARAM_NAMES = c("DOWNWELLING_PAR", "DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", "DOWN_IRRADIANCE490")
+irr_labels = c("PAR", "E_d(380)", "E_d(412)", "E_d(490)")
+names(irr_labels) = PARAM_NAMES
+units = c("$\\mu mol\\cdot m^{-2}\\cdot s^{-1}$", "$W\\cdot m^{-2}\\cdot nm^{-1}$", "$W\\cdot m^{-2}\\cdot nm^{-1}$", "$W\\cdot m^{-2}\\cdot nm^{-1}$")
+names(units) = PARAM_NAMES
+limits = list()
+limits[[PARAM_NAMES[1]]] = c(-1e-1, 3e-1)
+limits[[PARAM_NAMES[2]]] = c(-1e-4, 3e-4)
+limits[[PARAM_NAMES[3]]] = c(-1e-4, 3e-4)
+limits[[PARAM_NAMES[4]]] = c(-1e-4, 3e-4)
+
+
+file_A = paste0("/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/coriolis/", WMO, "/profiles/BD", WMO, "_", profile, ".nc")
+file_D = paste0("~/Documents/radiometry_QC/", WMO, "/RADM_profiles/BD", WMO, "_", profile, ".nc")
+file_core = paste0("/mnt/c/DATA/ftp.ifremer.fr/ifremer/argo/dac/coriolis/", WMO, "/profiles/D", WMO, "_", profile, ".nc")
 
 path_to_netcdf=""
 
@@ -33,7 +50,9 @@ get_param <- function(filename, PARAM_NAME, adj = T) {
     
     return(param_return)
 }
-param = "DOWN_IRRADIANCE380"
+
+for (param in PARAM_NAMES) { 
+
 match_A = get_Ts_match(path_to_netcdf, file_A, param)
 Irr_D = get_param(file_D, param)
 
@@ -48,9 +67,9 @@ g1 = ggplot(df, aes(x=Ts, y=PRES)) +
 	scale_y_reverse(name="Pressure (dbar)") +
 	scale_x_continuous(
 		name = "Sensor Temperature (°C)",
-		sec.axis = sec_axis(trans=~.*ab$coefficients[2] + ab$coefficients[1], name="Applied offset (W/m²/s)", 
+		sec.axis = sec_axis(trans=~.*ab$coefficients[2] + ab$coefficients[1], name=TeX(paste0("Applied offset (", units[param], ")")), 
 		#breaks = waiver()
-		breaks = c(-4e-5, -1.5e-5, 1e-5)
+		#breaks = c(-4e-5, -1.5e-5, 1e-5)
 		)
 	) +
 	#geom_ribbon(aes(xmin=Ts-2.5, xmax=Ts+2.5), fill="grey70") +
@@ -61,9 +80,9 @@ g1 = ggplot(df, aes(x=Ts, y=PRES)) +
 g2 = ggplot(df, aes(x=PARAM_A, y=PRES)) +
 	scale_y_reverse(name="Pressure (dbar)") +
 	scale_x_continuous(
-		limits=c(-1e-4, 3e-4),
-		name = "Ed(380) (W/m²/s)",
-		sec.axis = sec_axis(trans=~.*1, name="Dummy")
+		limits=limits[[param]],
+		name = TeX(paste0(irr_labels[param]," (", units[param], ")")),
+		sec.axis = sec_axis(trans=~.*1, name=TeX(paste0("Applied offset (", units[param], ")"))) 
 ) +
 	geom_vline(xintercept=0, linetype="dashed") +
 	scale_color_manual(values = c("Not corrected"="black", "Corrected"="red")) +
@@ -87,8 +106,8 @@ g3 = ggplot(df, aes(x=PARAM_A, y=PRES)) +
 	scale_y_reverse(name="Pressure (dbar)") +
 	scale_x_log10(
 		expand=expansion(mult=c(0,0.04)),
-		name = "Ed(380) (W/m²/s)",
-		sec.axis = sec_axis(trans=~.*1, name="Dummy")
+		name = TeX(paste0(irr_labels[param]," (", units[param], ")")),
+		sec.axis = sec_axis(trans=~.*1, name=TeX(paste0("Applied offset (", units[param], ")"))) 
 ) + 
 	#geom_vline(xintercept=0, linetype="dashed") +
     geom_ribbon(aes(xmin=pmax(min_ribbon,PARAM_D-ERROR), xmax=PARAM_D+ERROR), fill="grey60", alpha=0.5) +
@@ -109,6 +128,8 @@ g3 = ggplot(df, aes(x=PARAM_A, y=PRES)) +
 #gt = grid.arrange(g3, g2, g1, nrow=1)
 #gt
 
-png(filename="~/Documents/radiometry_QC/plot_diff/plot_correction_6901474_006_Ed380.png", width=600, height=400)
+png(filename=paste0("~/Documents/radiometry_QC/plot_diff/plot_correction_", WMO, "_", profile, "_", param, ".png"), width=800, height=300)
 grid.arrange(g3, g2, g1, nrow=1)
 dev.off()
+
+}
