@@ -18,6 +18,7 @@ suppressPackageStartupMessages({
     library(nortest)
     library(tidyr)
     library(dplyr)
+	library(latex2exp)
 })
 
 source(paste0(path_to_source, "possol.R"))
@@ -293,10 +294,10 @@ for (i in 1:length(WMO_list)) {
     dataf_sd[i, 2:5] = get_deep_sd(WMO_list[i])
 }
 
-hist(dataf_sd$PAR_sd, xlab="PAR standard deviation (umol/m²/s)", main="Histogram of the remaining SD in drift data after a\n multi-linear regression (34 hand-selected floats)")
-hist(dataf_sd$I380_sd, xlab="Ed(380) standard deviation (W/m²/nm)", main="Histogram of the remaining SD in drift data after a\n multi-linear regression (34 hand-selected floats)")
-hist(dataf_sd$I412_sd, xlab="Ed(412) standard deviation (W/m²/nm)", main="Histogram of the remaining SD in drift data after a\n multi-linear regression (34 hand-selected floats)")
-hist(dataf_sd$I490_sd, xlab="Ed(490) standard deviation (W/m²/nm)", main="Histogram of the remaining SD in drift data after a\n multi-linear regression (34 hand-selected floats)")
+hist(dataf_sd$PAR_sd, xlab=TeX("PAR standard deviation ($\\mu mol\\cdot m^{-2}\\cdot s^{-1}$)"))
+hist(dataf_sd$I380_sd, xlab=TeX("$E_d(380)$ standard deviation ($W\\cdot m^{-2}\\cdot nm^{-1}$)"))
+hist(dataf_sd$I412_sd, xlab=TeX("$E_d(412)$ standard deviation ($W\\cdot m^{-2}\\cdot nm^{-1}$)"))
+hist(dataf_sd$I490_sd, xlab=TeX("$E_d(490)$ standard deviation ($W\\cdot m^{-2}\\cdot nm^{-1}$)"))
 
 WMO_list[which(dataf_sd$PAR_sd>0.01)]
-hist(dataf_sd$PAR_sd[which(dataf_sd$PAR_sd<0.01)], xlab="PAR standard deviation (umol/m²/s)", main="Histogram of the remaining SD in drift data after a\n multi-linear regression (30 hand-selected floats)")
+hist(dataf_sd$PAR_sd[which(dataf_sd$PAR_sd<0.01)], xlab=TeX("PAR standard deviation ($\\mu mol\\cdot m^{-2}\\cdot s^{-1}$)")) #30 floats
