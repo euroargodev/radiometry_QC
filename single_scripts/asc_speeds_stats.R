@@ -1,5 +1,6 @@
 library(stringr)
 library(ggplot2)
+library(latex2exp)
 
 # CYCLE_NUMBER, median, mean, max, min, sd
 
@@ -38,7 +39,19 @@ for (param in c("median", "mean", "max", "min", "sd")) {
 
 df2 = na.omit(df)
 
+print(length(which(-df$mean/100 >= 0.08 & -df$mean/100 <=0.12))/length(df$mean))
+print(length(which(-df2$mean/100 >= 0.08 & -df2$mean/100 <=0.12))/length(df2$mean))
+
 p <- ggplot() +
-    geom_histogram( aes(x = df2$mean, y=0.5*length(df2$mean)*..density..), fill="#69b3a2" , color="#FFFFFF", boundary=T, binwidth=0.5  ) +
-    #geom_label( aes(x=250, y=6, label="corrected"), color="#69b3a2") +
-    labs(x="dP/dt (decibar/s)", y="Number of profiles")
+    geom_histogram( aes(x = -df2$mean/100, y=0.005*length(df2$mean)*..density..), fill="#69b3a2" , color="#FFFFFF", boundary=T, binwidth=0.005  ) +
+	scale_x_continuous(limits = c(0.05, 0.15), breaks=seq(0.06, 0.14, 0.02)) +
+	geom_vline(xintercept=0.08, linetype="dashed") +
+	geom_vline(xintercept=0.12, linetype="dashed") +
+    #labs(x="- dP/dt (decibar/s)", y="Number of profiles") +
+    #labs(x=TeX("$-\\frac{dP}{dt}$ ($dbar\\cdot s^{-1}$)"), y="Number of profiles") +
+    labs(x=TeX("Ascending speed ($dbar\\cdot s^{-1}$)"), y="Number of profiles") +
+	theme_bw()
+
+png(filename="~/Documents/radiometry_QC/pretty_plots/asc_speeds.png", width=300, height=300)
+p
+dev.off()
