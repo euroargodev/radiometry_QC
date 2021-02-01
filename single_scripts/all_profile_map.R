@@ -59,7 +59,7 @@ map_world = world[which(world$long >= -180 & world$long <= 180),]
 
 #my_palette = c(wes_palette("Rushmore1")[3], wes_palette("Rushmore1")[5])
 #my_palette = c(wes_palette("Cavalcanti1")[2], wes_palette("Cavalcanti1")[5])
-my_palette = brewer.pal(n=6, name="Dark2")[c(1,2,6)]
+my_palette = brewer.pal(n=6, name="Dark2")[c(1,2,6,3)]
 
 
 g1 = ggplot() +
@@ -94,6 +94,14 @@ g3.5 = ggplot() +
 	scale_y_continuous(breaks=seq(-90,90,30)) +
 	theme_bw() +
 	labs(color = "Correction status", x="Longitude", y="Latitude") 
+g3.5_all = ggplot() +
+	geom_polygon(data=map_world, aes(x=long, y=lat, group=group), fill="#dddddd")+
+	geom_point(aes(x=lon_plot, y=lat_plot), color=my_palette[4], size=0.7) +
+	annotate("rect", xmin=lon_range[1], xmax=lon_range[2], ymin=lat_range[1], ymax = lat_range[2], color="black", fill="black", alpha=0.5) +
+	scale_x_continuous(breaks=seq(-180,180,30)) +
+	scale_y_continuous(breaks=seq(-90,90,30)) +
+	theme_bw() +
+	labs(color = "Correction status", x="Longitude", y="Latitude") 
 g4 = ggplot() +
 	geom_polygon(data=map_world, aes(x=long, y=lat, group=group), fill="#dddddd")+
 	geom_point(aes(x=lon_plot[status_plot=="Corrected with alternative method(s)"], y=lat_plot[status_plot=="Corrected with alternative method(s)"]), color=my_palette[3], size=0.7) +
@@ -115,12 +123,19 @@ g5.5 = ggplot() +
 	geom_point(aes(x=lon_plot_mb[status_plot_mb=="Not corrected"], y=lat_plot_mb[status_plot_mb=="Not corrected"]), color=my_palette[2], size=0.7) +
 	theme_bw() +
 	theme(legend.position="none", axis.title.x=element_blank(), axis.title.y=element_blank())
+g5.5_all = ggplot() +
+	geom_polygon(data=map_mb, aes(x=long, y=lat, group=group), fill="#dddddd")+
+	geom_point(aes(x=lon_plot_mb, y=lat_plot_mb), color=my_palette[4], size=0.7) +
+	theme_bw() +
+	theme(legend.position="none", axis.title.x=element_blank(), axis.title.y=element_blank())
 g6 = ggplot() +
 	geom_polygon(data=map_mb, aes(x=long, y=lat, group=group), fill="#dddddd")+
 	geom_point(aes(x=lon_plot_mb[status_plot_mb=="Corrected with alternative method(s)"], y=lat_plot_mb[status_plot_mb=="Corrected with alternative method(s)"]), color=my_palette[3], size=0.7) +
 	geom_point(aes(x=lon_plot_mb[status_plot_mb=="Not corrected"], y=lat_plot_mb[status_plot_mb=="Not corrected"]), color=my_palette[2], size=0.7) +
 	theme_bw() +
 	theme(legend.position="none", axis.title.x=element_blank(), axis.title.y=element_blank())
+
+
 #png(filename="~/Documents/radiometry_QC/profile_map.png", width=700, height=400)
 #plot(g1)
 #dev.off()
@@ -144,4 +159,10 @@ plot(g3.5)
 dev.off()
 png(filename="~/Documents/radiometry_QC/good_floats_all_profile_map_medblack.png", width=220, height=120)
 plot(g5.5)
+dev.off()
+png(filename="~/Documents/radiometry_QC/good_floats_all_profile_map_same_color.png", width=700, height=400)
+plot(g3.5_all)
+dev.off()
+png(filename="~/Documents/radiometry_QC/good_floats_all_profile_map_medblack_same_color.png", width=220, height=120)
+plot(g5.5_all)
 dev.off()
