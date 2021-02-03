@@ -231,35 +231,35 @@ get_deep_sd <- function(WMO, n_cores=detectCores()) {
     good_drift = which(!drift_dataf$is_greylisted & !drift_dataf$is_drift_outlier)
     range_time = seq(min(c(drift_dataf$PARAM_date[good_drift], date_list)), max(c(drift_dataf$PARAM_date[good_drift], date_list)), length.out=100 )
         
-    data_fit_drift = data.frame(
-        PARAM_name = rep(PARAM_NAMES, each=2),
-        x = rep(range_time, 4),
-        y = rep(A_axis_drift, each=2) + rep(B_axis_drift, each=2) * 5
-        + rep(C_axis_drift, each=2) * rep(range_time, 4) 
-        + rep(Q_axis_drift, each=2) * rep(range_time^2, 4) 
-    )
+    #data_fit_drift = data.frame(
+    #    PARAM_name = rep(PARAM_NAMES, each=2),
+    #    x = rep(range_time, 4),
+    #    y = rep(A_axis_drift, each=2) + rep(B_axis_drift, each=2) * 5
+    #    + rep(C_axis_drift, each=2) * rep(range_time, 4) 
+    #    + rep(Q_axis_drift, each=2) * rep(range_time^2, 4) 
+    #)
         
-    g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
-        geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
-        geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
-        scale_color_viridis() +
-        facet_wrap(~PARAM_name, scale="free_y") +
-        labs (x="Julian day", y="Irradiance", colour="Closest drift\ntemperature", 
-                  title="Irradiance measurements during float drift")
-    g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
-        geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
-        geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
-        #geom_point(data=function(x){x[x$is_drift_outlier & !x$is_greylisted, ]}, color="red", shape=4) +
-        scale_color_viridis() +
-        facet_wrap(~PARAM_name, scale="free_y") +
-        labs (x="Julian day", y="Irradiance", colour="Closest drift\ntemperature",
-              title="Irradiance measurements during float drift,\nfitted to time and temperature and adjusted to 5°C")
+    #g4 = ggplot(na.omit(drift_dataf), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+    #    geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
+    #    geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
+    #    scale_color_viridis() +
+    #    facet_wrap(~PARAM_name, scale="free_y") +
+    #    labs (x="Julian day", y="Irradiance", colour="Closest drift\ntemperature", 
+    #              title="Irradiance measurements during float drift")
+    #g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date, y=PARAM, color=PARAM_Ts)) +
+    #    geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
+    #    geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
+    #    #geom_point(data=function(x){x[x$is_drift_outlier & !x$is_greylisted, ]}, color="red", shape=4) +
+    #    scale_color_viridis() +
+    #    facet_wrap(~PARAM_name, scale="free_y") +
+    #    labs (x="Julian day", y="Irradiance", colour="Closest drift\ntemperature",
+    #          title="Irradiance measurements during float drift,\nfitted to time and temperature and adjusted to 5°C")
         
         
     #g4_fit = g4 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
-    g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
+    #g5_fit = g5 + geom_line(data=data_fit_drift, mapping=aes(x=x,y=y), color="red")
         
-    if ( dim(drift_dataf)[1] != 0 ) {
+    #if ( dim(drift_dataf)[1] != 0 ) {
         #x11(xpos=0, ypos=0)
         #plot(g4)
         #x11(xpos=0, ypos=100)
@@ -267,18 +267,18 @@ get_deep_sd <- function(WMO, n_cores=detectCores()) {
         #x11(xpos=0, ypos=200)
         #plot(g5_fit_2)
         
-        plot_name=paste0(WMO, "_regr_drift_A.png")
-        png(filename=plot_name, width=600, height=600)
-        plot(g5_fit)
-        dev.off()
+    #    plot_name=paste0(WMO, "_regr_drift_A.png")
+    #    png(filename=plot_name, width=600, height=600)
+    #    plot(g5_fit)
+    #    dev.off()
         
-        plot_name=paste0(WMO, "_regr_drift_uncorrected_A.png")
-        png(filename=plot_name, width=600, height=600)
-        plot(g4)
-        dev.off()
-    } else {
-        cat("No valid drift data points were found...")
-    }
+    #    plot_name=paste0(WMO, "_regr_drift_uncorrected_A.png")
+    #    png(filename=plot_name, width=600, height=600)
+    #    plot(g4)
+    #    dev.off()
+    #} else {
+    #    cat("No valid drift data points were found...")
+    #}
 
     return(remain_sd)
 }
@@ -290,14 +290,41 @@ WMO_list = c("6901655", "6902735", "6902826", "6902954", "6901004", "6901480", "
 
 dataf_sd = data.frame("WMO"=WMO_list, "PAR_sd"=numeric(length(WMO_list)), "I380_sd"=numeric(length(WMO_list)), "I412_sd"=numeric(length(WMO_list)), "I490_sd"=numeric(length(WMO_list)))
 
-for (i in 1:length(WMO_list)) {
-    dataf_sd[i, 2:5] = get_deep_sd(WMO_list[i])
+M = mcmapply(get_deep_sd, WMO_list)
+
+#for (i in 1:length(WMO_list)) {
+    #dataf_sd[i, 2:5] = get_deep_sd(WMO_list[i])
+#}
+for (i in 1:4) {
+	dataf_sd[,i+1] = M[i,]
 }
 
-hist(dataf_sd$PAR_sd, xlab=TeX("PAR standard deviation ($\\mu mol\\cdot m^{-2}\\cdot s^{-1}$)"))
-hist(dataf_sd$I380_sd, xlab=TeX("$E_d(380)$ standard deviation ($W\\cdot m^{-2}\\cdot nm^{-1}$)"))
-hist(dataf_sd$I412_sd, xlab=TeX("$E_d(412)$ standard deviation ($W\\cdot m^{-2}\\cdot nm^{-1}$)"))
-hist(dataf_sd$I490_sd, xlab=TeX("$E_d(490)$ standard deviation ($W\\cdot m^{-2}\\cdot nm^{-1}$)"))
+#hist(dataf_sd$PAR_sd, xlab=TeX("PAR standard deviation ($\\mu mol\\cdot m^{-2}\\cdot s^{-1}$)"))
+#hist(dataf_sd$I380_sd, xlab=TeX("$E_d(380)$ standard deviation ($W\\cdot m^{-2}\\cdot nm^{-1}$)"))
+#hist(dataf_sd$I412_sd, xlab=TeX("$E_d(412)$ standard deviation ($W\\cdot m^{-2}\\cdot nm^{-1}$)"))
+#hist(dataf_sd$I490_sd, xlab=TeX("$E_d(490)$ standard deviation ($W\\cdot m^{-2}\\cdot nm^{-1}$)"))
 
 WMO_list[which(dataf_sd$PAR_sd>0.01)]
-hist(dataf_sd$PAR_sd[which(dataf_sd$PAR_sd<0.01)], xlab=TeX("PAR standard deviation ($\\mu mol\\cdot m^{-2}\\cdot s^{-1}$)")) #30 floats
+#hist(dataf_sd$PAR_sd[which(dataf_sd$PAR_sd<0.01)], xlab=TeX("PAR standard deviation ($\\mu mol\\cdot m^{-2}\\cdot s^{-1}$)")) #30 floats
+
+g1 = ggplot() +
+	geom_histogram(aes(x=dataf_sd$PAR_sd), fill="#69b3a2" , color="#FFFFFF", boundary=T, bins=15) +
+	theme_bw() +
+	labs(x=TeX("PAR standard deviation ($\\mu mol\\cdot m^{-2}\\cdot s^{-1}$)"), y="Number of floats")
+g2 = ggplot() +
+	geom_histogram(aes(x=dataf_sd$I380_sd), fill="#69b3a2" , color="#FFFFFF", boundary=T, bins=15) +
+	theme_bw() +
+	labs(x=TeX("$E_d(380)$ standard deviation ($W\\cdot m^{-2}\\cdot nm^{-1}$)"), y="Number of floats")
+g3 = ggplot() +
+	geom_histogram(aes(x=dataf_sd$I412_sd), fill="#69b3a2" , color="#FFFFFF", boundary=T, bins=15) +
+	theme_bw() +
+	labs(x=TeX("$E_d(412)$ standard deviation ($W\\cdot m^{-2}\\cdot nm^{-1}$)"), y="Number of floats")
+g4 = ggplot() +
+	geom_histogram(aes(x=dataf_sd$I490_sd), fill="#69b3a2" , color="#FFFFFF", boundary=T, bins=15) +
+	theme_bw() +
+	labs(x=TeX("$E_d(490)$ standard deviation ($W\\cdot m^{-2}\\cdot nm^{-1}$)"), y="Number of floats")
+
+
+png(filename=paste0("~/Documents/radiometry_QC/pretty_plots/sd_in_drift.png"), width=600, height=600)
+grid.arrange(g1, g2, g3, g4, nrow=2)
+dev.off()
