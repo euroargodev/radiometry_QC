@@ -44,12 +44,12 @@ print(length(which(-df2$mean/100 >= 0.08 & -df2$mean/100 <=0.12))/length(df2$mea
 
 p <- ggplot() +
     geom_histogram( aes(x = -df2$mean/100, y=0.005*length(df2$mean)*..density..), fill="#69b3a2" , color="#FFFFFF", boundary=T, binwidth=0.005  ) +
-	scale_x_continuous(limits = c(0.05, 0.15), breaks=seq(0.06, 0.14, 0.02)) +
+	scale_x_continuous(limits = c(0.05, 0.13), breaks=seq(0.06, 0.14, 0.02)) +
 	geom_vline(xintercept=0.08, linetype="dashed") +
 	geom_vline(xintercept=0.12, linetype="dashed") +
     #labs(x="- dP/dt (decibar/s)", y="Number of profiles") +
     #labs(x=TeX("$-\\frac{dP}{dt}$ ($dbar\\cdot s^{-1}$)"), y="Number of profiles") +
-    labs(x=TeX("Ascending speed ($dbar\\cdot s^{-1}$)"), y="Number of profiles") +
+    labs(x=TeX("Ascending speed (dbar s^{-1})"), y="Number of profiles") +
 	theme_bw()
 
 png(filename="~/Documents/radiometry_QC/pretty_plots/asc_speeds.png", width=300, height=300)
