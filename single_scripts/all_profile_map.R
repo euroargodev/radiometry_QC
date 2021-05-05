@@ -13,7 +13,8 @@ source("~/Documents/radiometry/single_scripts/survey.R")
 
 #corr_list = corr_list[which(corr_list$material!="LIVE"),]
 corr_list = corr_list[which(corr_list$material!="LIVE" & corr_list$num_night>0 & corr_list$num_drift>=0.8*corr_list$num_prof),]
-corrected_with_alternative = c("6901580", "6901866", "6901650", "6902968", "6901647", "6902547") # these floats have good QC data but were corrected with B and/or day methods
+#corrected_with_alternative = c("6901580", "6901866", "6901650", "6902968", "6901647", "6902547") # these floats have good QC data but were corrected with B and/or day methods
+corrected_with_alternative = c("6901580", "6901866", "6901650", "6902968") # these floats have good QC data but were corrected with B and/or day methods (removed the 2 floats that could be corrected with just main methods)
 corr_list$corrected_with_alternative = rep(FALSE, length(corr_list$WMO))
 for (the_WMO in corrected_with_alternative) {
 	corr_list$corrected_with_alternative[which(corr_list$WMO == the_WMO)] = TRUE
