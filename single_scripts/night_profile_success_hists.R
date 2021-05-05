@@ -12,6 +12,8 @@ p = ggplot(df, aes(x=value, fill=state)) +
 	geom_bar(color="#e9ecef") +
 	#geom_bar(color="#e9ecef", alpha=0.6, position=position_dodge2(preserve="single")) +
 	theme_bw() +
+	scale_y_continuous(limits=c(0,20), breaks=seq(0,20,5), minor_breaks=seq(0,20)) +
+	scale_x_continuous(limits=c(0,35), breaks=seq(0,35,5)) +
 	xlab("Number of available night profiles per float") +
 	ylab("Number of floats") +
 	labs(fill="") +
