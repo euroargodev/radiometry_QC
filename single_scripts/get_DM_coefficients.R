@@ -12,6 +12,9 @@ df$WMO = rep(WMO_list, each=4)
 PARAM_NAMES = c("DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", 
 				"DOWN_IRRADIANCE490", "DOWNWELLING_PAR")
 
+irr_labels = c("PAR", "E[d](380)", "E[d](412)", "E[d](490)")
+names(irr_labels) = PARAM_NAMES
+
 df$PARAM = rep(PARAM_NAMES, length(WMO_list))
 
 n = length(df$WMO)
@@ -45,19 +48,36 @@ df2 = df[which(df$Q==0),]
 
 gA = ggplot(data=df2, mapping=aes(x=A, group=PARAM)) +
 	geom_histogram() +
-	facet_wrap(~PARAM, ncol=1, scales="free") +
-	theme_bw()
+	scale_y_continuous(breaks=c(0,2,4,6,8)) +
+	scale_x_continuous(labels = function(x) format(x, scientific=TRUE),
+										 guide = guide_axis(check.overlap=TRUE)) +
+	theme_bw() +
+	#theme(axis.text=element_text(size=9)) +
+  theme(axis.title.y=element_blank()) +
+	facet_wrap(~PARAM, ncol=1, scales="free", labeller=labeller(PARAM=as_labeller(irr_labels, default=label_parsed)))
 
 gB = ggplot(data=df2, mapping=aes(x=B, group=PARAM)) +
 	geom_histogram() +
-	facet_wrap(~PARAM, ncol=1, scales="free") +
-	theme_bw()
+	scale_y_continuous(breaks=c(0,2,4,6,8)) +
+	scale_x_continuous(labels = function(x) format(x, scientific=TRUE),
+										 guide = guide_axis(check.overlap=TRUE)) +
+	theme_bw() +
+	#theme(axis.text=element_text(size=9)) +
+  theme(axis.title.y=element_blank()) +
+	facet_wrap(~PARAM, ncol=1, scales="free", labeller=labeller(PARAM=as_labeller(irr_labels, default=label_parsed)))
 
 gC = ggplot(data=df2, mapping=aes(x=C, group=PARAM)) +
 	geom_histogram() +
-	facet_wrap(~PARAM, ncol=1, scales="free") +
-	theme_bw()
+	scale_y_continuous(breaks=c(0,2,4,6,8)) +
+	scale_x_continuous(labels = function(x) format(x, scientific=TRUE),
+										 guide = guide_axis(check.overlap=TRUE)) +
+	theme_bw() +
+	#theme(axis.text=element_text(size=9)) +
+  theme(axis.title.y=element_blank()) +
+	facet_wrap(~PARAM, ncol=1, scales="free", labeller=labeller(PARAM=as_labeller(irr_labels, default=label_parsed)))
 
 png(filename="~/Documents/radiometry_QC/DM_coefficients_hists.png", width=800, height=800)
-grid.arrange(gA, gB, gC, nrow=1)
+grid.arrange(gA, gB, gC, nrow=1, left="count")
 dev.off()
+#gg1 = arrangeGrob(gA, gB, gC, nrow=1, left="count")
+#ggsave(filename="~/Documents/radiometry_QC/DM_coefficients_hists.tiff", plot=gg1, device="tiff", width=180, height=180, units="mm", dpi=300)
