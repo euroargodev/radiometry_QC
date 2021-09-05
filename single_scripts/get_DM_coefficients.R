@@ -12,7 +12,7 @@ df$WMO = rep(WMO_list, each=4)
 PARAM_NAMES = c("DOWN_IRRADIANCE380", "DOWN_IRRADIANCE412", 
 				"DOWN_IRRADIANCE490", "DOWNWELLING_PAR")
 
-irr_labels = c("PAR", "E[d](380)", "E[d](412)", "E[d](490)")
+irr_labels = c("E[d](380)", "E[d](412)", "E[d](490)", "PAR")
 names(irr_labels) = PARAM_NAMES
 
 df$PARAM = rep(PARAM_NAMES, length(WMO_list))
