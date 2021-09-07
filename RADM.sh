@@ -1,30 +1,31 @@
 #!/bin/bash
 
 usage() { 
-	echo "Usage: $0 -W <WMO_number> [-m <n_cores>] [-pz]
+  echo "Usage: $0 -W <WMO_number> [-m <n_cores>] [-pz]
 Do '$0 -h' for help" 1>&2
-	exit 1 
+  exit 1 
 }
 helprint() {
-	echo "
-#########################################################################################
+  echo "
+################################################################################
 
-RADM is a tool to create and write Delayed Mode (DM) of radiometry for argo floats.
+RADM is a tool to create and write Delayed Mode (DM) of radiometry for argo 
+floats.
 
 Usage: $0 -W <WMO_number> [-m <n_cores>] [-pz]
 
 ### Options
 
--W <WMO_number> : Do the delayed mode on all profiles of a float identified with its
-                  7 digits WMO number.
-[-m <n_cores>] : Define the number of cores to use for parallelization. By default RADM
-                 uses all available cores.
+-W <WMO_number> : Do the delayed mode on all profiles of a float identified with
+                  its 7 digits WMO number.
+[-m <n_cores>] : Define the number of cores to use for parallelization. By 
+                 default RADM uses all available cores.
 [-p] : Plot mode, use after the DM is finished to compare before/after.
 [-z] : Zoom on pressure between [0,250] decibars in plot mode.
 
-#########################################################################################
+################################################################################
 " 1>&2
-	exit 0
+  exit 0
 }
 
 WMO=NA
