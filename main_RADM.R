@@ -35,6 +35,17 @@ my_menu <- function(choices, title=NULL) { # equivalent to menu() but compatible
   }
 }
 
+scientific_formatter <- function(x) { 
+  # format data into scientific notation with 10^ (instead of e)
+  
+  x = format(x, scientific=TRUE)
+
+  x = sub("\\+0", "+", x)
+  x = sub("\\-0", "-", x)
+
+  return(TeX(paste0(sub("e", " 10^{", x),"}")))
+}
+
 main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_cores=detectCores()) {
   
   choice = my_menu(title = paste0("What kind of radiometry sensor is used in this float ? ",
@@ -328,34 +339,37 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
       geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
       geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
       scale_color_viridis() +
+      scale_y_continuous(labels = scientific_formatter) +
       facet_wrap(~PARAM_name, scale="free_y", 
                  labeller = labeller(PARAM_name = as_labeller(irr_labels, default=label_parsed))) +
       theme_bw() +
-      labs(x="Days from launch", 
+      labs(x="Days from the deployment", 
            y=TeX(paste0("$E_d(\\lambda)$ ($W\\, m^{-2}\\, nm^{-1}$) ;",
                         "PAR ($\\mu mol\\, m^{-2}\\, s^{-1}$)")), 
-           colour="Closest drift\ntemperature (°C)")
+           colour="Sensor\ntemperature (°C)")
     g5 = ggplot(na.omit(drift_dataf_5C), aes(x=PARAM_date_0, y=PARAM, color=PARAM_Ts)) +
       geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
       geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
       #geom_point(data=function(x){x[x$is_drift_outlier & !x$is_greylisted, ]}, 
       #           color="red", shape=4) +
       scale_color_viridis() +
+      scale_y_continuous(labels = scientific_formatter) +
       facet_wrap(~PARAM_name, scale="free_y", 
                  labeller = labeller(PARAM_name = as_labeller(irr_labels, default=label_parsed))) +
       theme_bw() +
-      labs(x="Days from launch", 
+      labs(x="Days from the deployment", 
            y=TeX(paste0("$E_d(\\lambda)$ ($W\\, m^{-2}\\, nm^{-1}$) ;",
                         "PAR ($\\mu mol\\, m^{-2}\\, s^{-1}$)")), 
-           colour="Closest drift\ntemperature (°C)")
+           colour="Sensor\ntemperature (°C)")
     g6 = ggplot(na.omit(DRIFT_dataf), aes(x=PARAM_date_0, y=PARAM, color=PARAM_Ts)) +
       geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
       geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
       scale_color_viridis() +
+      scale_y_continuous(labels = scientific_formatter) +
       facet_wrap(~PARAM_name, scale="free_y", 
                  labeller = labeller(PARAM_name = as_labeller(irr_labels, default=label_parsed))) +
       theme_bw() +
-      labs(x="Days from launch", 
+      labs(x="Days from the deployment", 
            y=TeX(paste0("$E_d(\\lambda)$ ($W\\, m^{-2}\\, nm^{-1}$) ;",
                         "PAR ($\\mu mol\\, m^{-2}\\, s^{-1}$)")), 
            colour="Sensor\ntemperature (°C)")
@@ -363,10 +377,11 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
       geom_point(data=function(x){x[!x$is_greylisted & !x$is_drift_outlier, ]}) +
       geom_point(data=function(x){x[x$is_greylisted & !x$is_drift_outlier, ]}, color="red") +
       scale_color_viridis() +
+      scale_y_continuous(labels = scientific_formatter) +
       facet_wrap(~PARAM_name, scale="free_y", 
                  labeller = labeller(PARAM_name = as_labeller(irr_labels, default=label_parsed))) +
       theme_bw() +
-      labs(x="Days from launch", 
+      labs(x="Days from the deployment", 
            y=TeX(paste0("$E_d(\\lambda)$ ($W\\, m^{-2}\\, nm^{-1}$) ;",
                         "PAR ($\\mu mol\\, m^{-2}\\, s^{-1}$)")), 
            colour="Sensor\ntemperature (°C)")
@@ -645,6 +660,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
       geom_point(data=function(x){x[!x$is_greylisted & x$PARAM_pres>pres_cutoff, ]}) +
       #geom_point(data=function(x){x[x$is_greylisted, ]}, color="red") +
       scale_color_viridis(trans='reverse') +
+      scale_y_continuous(labels = scientific_formatter) +
       facet_wrap(~PARAM_name, scale="free_y", 
                  labeller = labeller(PARAM_name = as_labeller(irr_labels, default=label_parsed))) +
       theme_bw() +
@@ -658,6 +674,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
                                   & x$PARAM_pres>pres_cutoff, ]}) +
       #geom_point(data=function(x){x[x$is_greylisted & !x$is_dark_outlier, ]}, color="red") +
       scale_color_viridis(trans='reverse') +
+      scale_y_continuous(labels = scientific_formatter) +
       facet_wrap(~PARAM_name, scale="free_y", 
                  labeller = labeller(PARAM_name = as_labeller(irr_labels, default=label_parsed))) +
       theme_bw() +
