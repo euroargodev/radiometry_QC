@@ -39,6 +39,7 @@ suppressPackageStartupMessages({
     library(dplyr)
 })
     
+source(paste0(path_to_source, "helpers.R"))
 source(paste0(path_to_source, "possol.R"))
 source(paste0(path_to_source, "sensor_temp.R"))
 source(paste0(path_to_source, "main_RADM.R"))
