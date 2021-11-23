@@ -51,8 +51,8 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME, material="PEEK",
   PRES_C_QC = unlist(str_split(ncvar_get(filenc_C, "PRES_QC", 
                                          start=c(1,id_prof_C), count=c(n_levels_C,1)), ""))
   
-  #bad_data_B = which(PARAM_QC=="3" | PARAM_QC=="4" | PRES_B_QC=="3" | PRES_B_QC=="4")
-  bad_data_B = which(PARAM_QC=="3" | PARAM_QC=="4")
+  bad_data_B = which(PARAM_QC=="3" | PARAM_QC=="4" | PRES_B_QC=="3" | PRES_B_QC=="4")
+  #bad_data_B = which(PARAM_QC=="3" | PARAM_QC=="4")
   bad_data_C = which(TEMP_QC=="3" | TEMP_QC=="4" | PRES_C_QC=="3" | PRES_C_QC=="4")
   PARAM[bad_data_B] = NA
   TEMP[bad_data_C] = NA
