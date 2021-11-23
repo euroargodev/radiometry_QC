@@ -40,6 +40,7 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME, material="PEEK",
   TEMP = ncvar_get(filenc_C, "TEMP", start=c(1,id_prof_C), count=c(n_levels_C,1))  
   PRES_B = ncvar_get(filenc_B, "PRES", start=c(1,id_prof_B), count=c(n_levels_B,1))  
   PRES_C = ncvar_get(filenc_C, "PRES", start=c(1,id_prof_C), count=c(n_levels_C,1))  
+  MTIME_B = ncvar_get(filenc_B, "MTIME", start=c(1,id_prof_B), count=c(n_levels_B,1))  
   
   PARAM_QC = unlist(str_split(ncvar_get(filenc_B, paste(PARAM_NAME,"_QC",sep=""), 
                                         start=c(1,id_prof_B), count=c(n_levels_B,1)), ""))
@@ -50,17 +51,19 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME, material="PEEK",
   PRES_C_QC = unlist(str_split(ncvar_get(filenc_C, "PRES_QC", 
                                          start=c(1,id_prof_C), count=c(n_levels_C,1)), ""))
   
-  bad_data_B = which(PARAM_QC=="3" | PARAM_QC=="4" | PRES_B_QC=="3" | PRES_B_QC=="4")
+  #bad_data_B = which(PARAM_QC=="3" | PARAM_QC=="4" | PRES_B_QC=="3" | PRES_B_QC=="4")
+  bad_data_B = which(PARAM_QC=="3" | PARAM_QC=="4")
   bad_data_C = which(TEMP_QC=="3" | TEMP_QC=="4" | PRES_C_QC=="3" | PRES_C_QC=="4")
   PARAM[bad_data_B] = NA
   TEMP[bad_data_C] = NA
   PRES_B[bad_data_B] = NA
   PRES_C[bad_data_C] = NA
+  MTIME_B[bad_data_B] = NA
   
   nc_close(filenc_B)
   nc_close(filenc_C)
   
-  fitted_Ts = sensor_temp(TEMP, PRES_C, PRES_B, material)
+  fitted_Ts = sensor_temp(TEMP, PRES_C, PRES_B, material, MTIME_B)
   
   return(list("PARAM"=PARAM, "Ts"=fitted_Ts, "PRES"=PRES_B, "id_prof"=id_prof_B, "n_prof"=n_prof_B,
               "n_levels"=n_levels_B, "PARAM_QC"=PARAM_QC, "PRES_B_QC"=PRES_B_QC))
