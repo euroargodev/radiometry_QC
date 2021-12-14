@@ -905,7 +905,8 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
       
       comment_dmqc_operator_PRIMARY = 
         "PRIMARY | https://orcid.org/0000-0001-9992-5334 | Raphaelle Sauzede, CNRS" 
-      
+        #"PRIMARY | https://orcid.org/0000-0003-3931-4675 | Giorgio Dall'Olmo, PML"
+
       ### comment_dmqc_operator_PARAM 
       
       comment_dmqc_operator_PARAM = paste(PARAM_NAMES[i], "| https://orcid.org/0000-0002-1230-164X",
@@ -931,7 +932,11 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
                          HISTORY_SOFTWARE_RELEASE=HISTORY_SOFTWARE_RELEASE, 
                          param_adjusted=corr_array, param_adjusted_qc=corr_qc_array, 
                          param_adjusted_error=corr_error_array)
-
+      
+      if (exit[i] != 0) {
+        cat(paste0("\nWarning: write_DM() exited with error code ", exit[i], " on file ", 
+                   file_name, " with parameter ", PARAM_NAMES[i], " !"))
+      }
     }
     
     return(exit)  
