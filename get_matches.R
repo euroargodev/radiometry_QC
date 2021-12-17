@@ -56,11 +56,17 @@ get_Ts_match <- function(path_to_netcdf, file_name, PARAM_NAME, material="PEEK",
   TEMP[bad_data_C] = NA
   PRES_B[bad_data_B] = NA
   PRES_C[bad_data_C] = NA
+
+  MTIME_B = NULL
+  if ("MTIME" %in% names(filenc_B$var)) {
+    MTIME_B = ncvar_get(filenc_B, "MTIME", start=c(1,id_prof_B), count=c(n_levels_B,1))  
+    MTIME_B[bad_data_B] = NA
+  }
   
   nc_close(filenc_B)
   nc_close(filenc_C)
   
-  fitted_Ts = sensor_temp(TEMP, PRES_C, PRES_B, material)
+  fitted_Ts = sensor_temp(TEMP, PRES_C, PRES_B, material, MTIME_B)
   
   return(list("PARAM"=PARAM, "Ts"=fitted_Ts, "PRES"=PRES_B, "id_prof"=id_prof_B, "n_prof"=n_prof_B,
               "n_levels"=n_levels_B, "PARAM_QC"=PARAM_QC, "PRES_B_QC"=PRES_B_QC))
