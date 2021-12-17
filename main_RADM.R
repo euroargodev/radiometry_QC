@@ -869,18 +869,10 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
       }
       
       corr_error_array = pmax(ramp_error*abs(corr_array), abs_error)
-      #corr_error = rep(NA, length(corr))
-      #corr_error[which(!is.na(corr))] = -1
-      
-      #corr_error_array = array(NA, c(matchup$n_levels, matchup$n_prof))
-      #corr_error_array[, matchup$id_prof] = corr_error
       
       ### Scientific comment
       
-      scientific_comment = str_pad(paste0(PARAM_NAMES[i], " dark correction. Uses JULD to correct ",
-                                          "drift and SENSOR_TEMP to correct temperature variance. ",
-                                          "SENSOR_TEMP is reconstructed from the TEMP axis of the ",
-                                          "core file following [https://doi.org/10.13155/62466]"),
+      scientific_comment = str_pad(paste0(PARAM_NAMES[i], " dark correction. Uses JULD to correct drift and SENSOR_TEMP to correct temperature variance. SENSOR_TEMP is reconstructed from the TEMP axis of the core file following [https://doi.org/10.3390/s21186217]"),
                                    256, "right")
       
       ### Scientific coefficient
@@ -908,8 +900,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
       
       ### comment_dmqc_operator_PARAM 
       
-      comment_dmqc_operator_PARAM = paste(PARAM_NAMES[i], "| https://orcid.org/0000-0002-1230-164X",
-                                          "| Catherine Schmechtig, CNRS")
+      comment_dmqc_operator_PARAM = paste(PARAM_NAMES[i], "| https://orcid.org/0000-0002-1230-164X | Catherine Schmechtig, CNRS")
       
       ### HISTORY_SOFTWARE 
       
@@ -917,7 +908,7 @@ main_RADM <- function(WMO, index_ifremer, index_greylist, path_to_netcdf, n_core
       
       ### HISTORY_SOFTWARE_RELEASE
       
-      HISTORY_SOFTWARE_RELEASE = "1.03"
+      HISTORY_SOFTWARE_RELEASE = "1.04"
       
       ### write to file
       
